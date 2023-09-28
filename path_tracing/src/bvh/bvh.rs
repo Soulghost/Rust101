@@ -5,12 +5,12 @@ use crate::mesh::object::Object;
 use crate::bvh::bounds::Bounds3;
 
 pub struct BVH {
-    pub primitives: Vec<Arc<Object>>,
+    pub primitives: Vec<Arc<dyn Object>>,
     root: Option<Box<BVHNode>>
 }
 
 impl BVH {
-    pub fn new(primitives: Vec<Arc<Object>>) -> Arc<BVH> {
+    pub fn new(primitives: Vec<Arc<dyn Object>>) -> Arc<BVH> {
         Arc::new(BVH {
             root: None,
             primitives
@@ -23,6 +23,10 @@ impl BVH {
 
     fn build_recursively(&mut self) -> Box<BVHNode> {
         let root = BVHNode::new();
+        let mut bounds = Bounds3::zero();
+        for object in self.primitives.iter() {
+            bounds.union(&object.get_bounds());
+        }
         return root;
     }
 }
@@ -31,7 +35,7 @@ pub struct BVHNode {
     pub bounds: Bounds3,
     pub left: Option<Box<BVHNode>>,
     pub right: Option<Box<BVHNode>>,
-    pub object: Option<Box<Object>>,
+    pub object: Option<Box<dyn Object>>,
     pub area: f32,
     pub split_axis: Axis,
     pub first_primitive_offset: i32,
