@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::sync::Arc;
 
 use crate::domain::domain::Axis;
@@ -18,14 +19,93 @@ impl BVH {
     }
 
     pub fn build(&mut self) {
-        self.root = Some(self.build_recursively())
+        let tmp = self.primitives.clone();
+        self.root = Some(self.build_recursively(tmp))
     }
 
-    fn build_recursively(&mut self) -> Box<BVHNode> {
-        let root = BVHNode::new();
+    fn build_recursively(&self, mut primitives: Vec<Arc<dyn Object>>) -> Box<BVHNode> {
+        let mut root = BVHNode::new();
         let mut bounds = Bounds3::zero();
-        for object in self.primitives.iter() {
+        for object in primitives.iter() {
             bounds.union(&object.get_bounds());
+        }
+        
+        let n_objs = primitives.len();
+        if n_objs == 1 {
+            let obj = &primitives[0];
+            root.bounds = obj.get_bounds();
+            root.object = Some(Arc::clone(obj));
+            root.left = None;
+            root.right = None;
+            root.area = obj.get_area();
+        } else if n_objs == 2 {
+            let left = vec![Arc::clone(&primitives[0])];
+            root.left = Some(self.build_recursively(left));
+
+            let right = vec![Arc::clone(&primitives[1])];
+            root.right = Some(self.build_recursively(right));
+
+            root.bounds = Bounds3::union2(
+                &root.left.as_ref().unwrap().bounds,
+                &root.right.as_ref().unwrap().bounds);
+            root.area = root.left.as_ref().unwrap().area
+                      + root.right.as_ref().unwrap().area;
+        } else {
+            let mut max_bounds = Bounds3::zero();
+            for primitive in primitives.iter() {
+                max_bounds.union(&primitive.get_bounds());
+            }
+            let max_axis = max_bounds.max_extent_axis();
+            match max_axis {
+                Axis::X => {
+                    primitives.sort_by(|a, b| {
+                        let o1 = a.get_bounds().center().x;
+                        let o2 = b.get_bounds().center().x;
+                        if o1 < o2 {
+                            return Ordering::Less;
+                        } else if o1 == o2 {
+                            return Ordering::Equal;
+                        }
+                        return Ordering::Greater;
+                    })
+                }
+                Axis::Y => {
+                    primitives.sort_by(|a, b| {
+                        let o1 = a.get_bounds().center().y;
+                        let o2 = b.get_bounds().center().y;
+                        if o1 < o2 {
+                            return Ordering::Less;
+                        } else if o1 == o2 {
+                            return Ordering::Equal;
+                        }
+                        return Ordering::Greater;
+                    })
+                }
+                Axis::Z => {
+                    primitives.sort_by(|a, b| {
+                        let o1 = a.get_bounds().center().z;
+                        let o2 = b.get_bounds().center().z;
+                        if o1 < o2 {
+                            return Ordering::Less;
+                        } else if o1 == o2 {
+                            return Ordering::Equal;
+                        }
+                        return Ordering::Greater;
+                    })
+                }
+                Axis::Nil => {
+                    panic!("invalid axis type");
+                }
+            }
+            let middle_index = primitives.len() / 2;
+            let left = primitives[0..middle_index].to_vec();
+            let right = primitives[middle_index..].to_vec();
+            root.left = Some(self.build_recursively(left));
+            root.right = Some(self.build_recursively(right));
+            root.bounds = Bounds3::union2(&root.left.as_ref().unwrap().bounds, 
+                                          &root.right.as_ref().unwrap().bounds);
+            root.area = root.left.as_ref().unwrap().area +
+                        root.right.as_ref().unwrap().area;
         }
         return root;
     }
@@ -35,7 +115,7 @@ pub struct BVHNode {
     pub bounds: Bounds3,
     pub left: Option<Box<BVHNode>>,
     pub right: Option<Box<BVHNode>>,
-    pub object: Option<Box<dyn Object>>,
+    pub object: Option<Arc<dyn Object>>,
     pub area: f32,
     pub split_axis: Axis,
     pub first_primitive_offset: i32,
