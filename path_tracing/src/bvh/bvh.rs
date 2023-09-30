@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
+use std::f32::EPSILON;
 use std::sync::Arc;
 
-use crate::domain::domain::Axis;
+use crate::domain::domain::{Axis, Intersection, Ray};
+use crate::math::vector::Vector3f;
 use crate::mesh::object::Object;
 use crate::bvh::bounds::Bounds3;
 
@@ -21,6 +23,13 @@ impl BVH {
     pub fn build(&mut self) {
         let tmp = self.primitives.clone();
         self.root = Some(self.build_recursively(tmp))
+    }
+
+    pub fn intersect(&self, ray: &Ray) -> Intersection {
+        if self.root.is_none() {
+            return Intersection::new();
+        }
+        return BVH::intersect_internal(self.root.as_ref(), ray);
     }
 
     fn build_recursively(&self, mut primitives: Vec<Arc<dyn Object>>) -> Box<BVHNode> {
@@ -108,6 +117,30 @@ impl BVH {
                         root.right.as_ref().unwrap().area;
         }
         return root;
+    }
+
+    fn intersect_internal(root: Option<&Box<BVHNode>>, ray: &Ray) -> Intersection {
+        if root.is_none() {
+            return Intersection::new();
+        }
+
+        let node = root.as_ref().unwrap();
+        if !node.bounds.intersect(ray) {
+            return Intersection::new();
+        }
+
+        // leaf node
+        if node.left.is_none() && node.right.is_none() {
+            return node.object.as_ref().unwrap().intersect(ray);
+        }
+
+        let left = BVH::intersect_internal(node.left.as_ref(), ray);
+        let right = BVH::intersect_internal(node.right.as_ref(), ray);
+        if left.distance < right.distance {
+            left
+        } else {
+            right
+        }
     }
 }
 

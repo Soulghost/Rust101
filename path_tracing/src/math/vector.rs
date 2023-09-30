@@ -7,6 +7,10 @@ pub struct Vector3f {
 }
 
 impl Vector3f {
+    pub fn new(x: f32, y: f32, z: f32) -> Vector3f {
+        Vector3f { x, y, z }
+    }
+
     pub fn zero() -> Vector3f {
         Vector3f { x: 0.0, y: 0.0, z: 0.0 }
     }
@@ -32,14 +36,18 @@ impl Vector3f {
     }
 }
 
-impl ops::Mul<f32> for Vector3f {
+impl<T> ops::Mul<T> for Vector3f 
+where 
+    f64: From<T>
+{
     type Output = Vector3f;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: T) -> Self::Output {
+        let val = f64::from(rhs) as f32;
         Vector3f {
-            x: self.x * rhs,
-            y: self.y * rhs,
-            z: self.z * rhs
+            x: self.x * val,
+            y: self.y * val,
+            z: self.z * val
         }
     }
 }
@@ -64,6 +72,31 @@ impl ops::Sub<Vector3f> for Vector3f {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
             z: self.z - rhs.z
+        }
+    }
+}
+
+impl<'a> ops::Sub for &'a Vector3f {
+    type Output = Vector3f; 
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vector3f {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z
+        }
+    }
+}
+
+impl<'a> ops::Mul for &'a Vector3f 
+{
+    type Output = Vector3f;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Vector3f {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z
         }
     }
 }
