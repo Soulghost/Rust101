@@ -1,9 +1,7 @@
 use std::cmp::Ordering;
-use std::f32::EPSILON;
 use std::sync::Arc;
 
 use crate::domain::domain::{Axis, Intersection, Ray};
-use crate::math::vector::Vector3f;
 use crate::mesh::object::Object;
 use crate::bvh::bounds::Bounds3;
 
@@ -124,7 +122,7 @@ impl BVH {
             return Intersection::new();
         }
 
-        let node = root.as_ref().unwrap();
+        let node = root.unwrap();
         if !node.bounds.intersect(ray) {
             return Intersection::new();
         }
