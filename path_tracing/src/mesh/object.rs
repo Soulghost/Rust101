@@ -1,4 +1,4 @@
-use crate::bvh::bounds::Bounds3;
+use crate::{bvh::bounds::Bounds3, domain::domain::{Intersection, Ray}};
 
 pub trait Object {
     fn get_bounds(&self) -> Bounds3 {
@@ -8,4 +8,6 @@ pub trait Object {
     fn get_area(&self) -> f32 {
         return 0.0;
     }
+
+    fn intersect(&self, ray: &Ray) -> Intersection;
 }
