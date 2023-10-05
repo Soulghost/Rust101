@@ -11,11 +11,11 @@ pub struct BVH {
 }
 
 impl BVH {
-    pub fn new(primitives: Vec<Arc<dyn Object>>) -> Arc<BVH> {
-        Arc::new(BVH {
+    pub fn new(primitives: Vec<Arc<dyn Object>>) -> BVH {
+        BVH {
             root: None,
             primitives
-        })
+        }
     }
 
     pub fn build(&mut self) {

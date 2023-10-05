@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{math::vector::Vector3f, mesh::object::Object};
+use crate::{math::vector::Vector3f, mesh::object::Object, material::material::Material};
 
 pub enum Axis {
     X,
@@ -18,14 +18,14 @@ pub struct Ray {
 }
 
 impl Ray {
-    pub fn new(origin: Vector3f,
-               direction: Vector3f,
+    pub fn new(origin: &Vector3f,
+               direction: &Vector3f,
                t: f64) -> Ray {
         Ray {
             t_min: 0.0,
             t_max: f64::MAX,
-            origin,
-            direction,
+            origin: origin.clone(),
+            direction: direction.clone(),
             t
         }
     }
@@ -42,7 +42,8 @@ pub struct Intersection {
     pub normal: Vector3f,
     pub emit: Vector3f,
     pub distance: f64,
-    pub obj: Option<Arc<dyn Object>>
+    pub obj: Option<Arc<dyn Object>>,
+    pub material: Option<Arc<dyn Material>>
 }
 
 impl Intersection {
@@ -54,7 +55,8 @@ impl Intersection {
             normal: Vector3f::zero(),
             emit: Vector3f::zero(),
             distance: f64::MAX,
-            obj: None
+            obj: None,
+            material: None
         }
     }
 }
