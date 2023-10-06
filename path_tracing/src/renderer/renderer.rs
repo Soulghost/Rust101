@@ -29,6 +29,7 @@ impl Renderer {
         let eye_pos = Vector3f::new(278.0, 273.0, -800.0);
         println!("[Renderer] render info {} x {}, aspect {}, spp {}", scene.width, scene.height, aspect, scene.sample_per_pixel);
         
+        println!("[Renderer] rt size {} x {}", rt.get_width(), rt.get_height());
         for j in 0..scene.height {
             for i in 0..scene.width {
                 let x = (2.0 * (i as f32 + 0.5) / scene.width as f32 - 1.0) * aspect * scale;

@@ -65,7 +65,14 @@ impl Vector3f {
             z: self.x * rhs.y - self.y * rhs.x
         }
     }
+
+    pub fn distance_sq(&self, rhs: &Vector3f) -> f32 {
+        (self.x - rhs.x) * (self.x - rhs.x) +
+        (self.y - rhs.y) * (self.y - rhs.y) +
+        (self.z - rhs.z) * (self.z - rhs.z)
+    }
 }
+
 
 impl<T> ops::Mul<T> for Vector3f 
 where 
@@ -95,6 +102,38 @@ where
             x: self.x * val,
             y: self.y * val,
             z: self.z * val
+        }
+    }
+}
+
+impl<T> ops::Div<T> for Vector3f 
+where 
+    f64: From<T>
+{
+    type Output = Vector3f;
+
+    fn div(self, rhs: T) -> Self::Output {
+        let val = f64::from(rhs) as f32;
+        Vector3f {
+            x: self.x / val,
+            y: self.y / val,
+            z: self.z / val
+        }
+    }
+}
+
+impl<T> ops::Div<T> for &Vector3f 
+where 
+    f64: From<T>
+{
+    type Output = Vector3f;
+
+    fn div(self, rhs: T) -> Self::Output {
+        let val = f64::from(rhs) as f32;
+        Vector3f {
+            x: self.x / val,
+            y: self.y / val,
+            z: self.z / val
         }
     }
 }

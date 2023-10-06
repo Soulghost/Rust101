@@ -10,4 +10,6 @@ pub trait Object {
     }
 
     fn intersect(&self, ray: &Ray) -> Intersection;
+
+    fn sample(&self) -> (Intersection, f32);
 }

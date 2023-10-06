@@ -26,10 +26,10 @@ impl RenderTexture {
     pub fn set(&mut self, x: u32, y: u32, color: Vector3f, mode: RenderTextureSetMode) {
         match mode {
             RenderTextureSetMode::Overwrite => {
-                self.buffer[x as usize][y as usize] = color;
+                self.buffer[y as usize][x as usize] = color;
             }
             RenderTextureSetMode::Add => {
-                self.buffer[x as usize][y as usize] += color;
+                self.buffer[y as usize][x as usize] += color;
             }
         }
         
