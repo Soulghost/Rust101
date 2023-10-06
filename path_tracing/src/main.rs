@@ -1,4 +1,4 @@
-use std::{sync::Arc, env};
+use std::{sync::Arc};
 
 use material::material::LitMaterial;
 use math::vector::Vector3f;

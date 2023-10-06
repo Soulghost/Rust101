@@ -55,4 +55,8 @@ impl Object for Triangle {
     fn intersect(&self, ray: &Ray) -> Intersection{
         !todo!()
     }
+
+    fn sample(&self) -> (Intersection, f32) {
+        !todo!()
+    }
 }

@@ -80,4 +80,8 @@ impl Object for Model {
     fn intersect(&self, ray: &crate::domain::domain::Ray) -> crate::domain::domain::Intersection {
         todo!()
     }
+
+    fn sample(&self) -> (crate::domain::domain::Intersection, f32) {
+        todo!()
+    }
 }

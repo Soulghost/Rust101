@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{sync::Arc};
 
-use crate::{math::vector::Vector3f, mesh::{model::Model, object::Object}, bvh::bvh::BVH, domain::domain::{Ray, Intersection}};
+use crate::{math::{vector::Vector3f, Math}, mesh::{model::Model, object::Object}, bvh::bvh::BVH, domain::domain::{Ray, Intersection}};
 
 pub struct Scene {
     pub width: u32,
@@ -61,13 +61,66 @@ impl Scene {
         return Ok(self.shade(&inter, &re_dir));
     }
 
-    fn shade(&self, intersection: &Intersection, wo: &Vector3f) -> Vector3f {
-        if let Some(material) = &intersection.material {
+    fn shade(&self, hit: &Intersection, wo: &Vector3f) -> Vector3f {
+        if let Some(material) = &hit.material {
             if material.has_emission() {
                 return material.get_emission();
             }
         }
 
-        return self.camera_background_color.clone();
+        let (inter_light, pdf) = self.sample_light();
+        let light_normal = &inter_light.normal;
+        let ws = (&inter_light.coords - &hit.coords).normalize();
+        let cosine_theta = ws.dot(&hit.normal);
+        let cosine_theta_prime = (-&ws).dot(light_normal);
+
+        // directional lighting
+        let mut l_dir = Vector3f::zero();
+        let hit_mat = hit.material.as_ref().unwrap();
+        let hit_to_light_dis = inter_light.coords.distance_sq(&hit.coords) as f64;
+        let shadow_check_inter = self.bvh.as_ref().unwrap().intersect(
+            &Ray::new(&hit.coords, &ws, 0.0)
+        );
+        let occluder_dis = shadow_check_inter.distance * shadow_check_inter.distance;
+        if occluder_dis - hit_to_light_dis > -f64::EPSILON {
+            // not in shadow
+            let f_r = hit_mat.eval(&ws, &wo, &hit.normal);
+            l_dir = &hit.emit // L_i
+                    * &f_r 
+                    * cosine_theta
+                    * cosine_theta_prime
+                    / hit_to_light_dis
+                    / pdf;
+        }
+
+        // indirectional lighting
+        let mut l_indir = Vector3f::zero();
+        if Math::sample_uniform_distribution(0.0, 1.0) < self.russian_roulette {
+            let sample_dir = hit_mat.sample(&-wo, &hit.normal).normalize();
+            
+        }
+        return l_dir + l_indir;
+    }
+
+    fn sample_light(&self) -> (Intersection, f32) {
+        let mut emit_area_sum: f32 = 0.0;
+        for obj in self.models.iter() {
+            if obj.material.has_emission() {
+                emit_area_sum += obj.get_area();
+            }
+        }
+
+        let p = Math::sample_uniform_distribution(0.0, 1.0);
+        emit_area_sum = 0.0;
+        for obj in self.models.iter() {
+            if obj.material.has_emission() {
+                emit_area_sum += obj.get_area();
+                if emit_area_sum >= p {
+                    return obj.sample();
+                }
+            }
+        }
+
+        panic!("impossible");
     }
 }
