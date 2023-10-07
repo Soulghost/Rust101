@@ -7,7 +7,7 @@ pub trait Material : Send + Sync {
     fn has_emission(&self) -> bool;
     fn get_emission(&self) -> Vector3f;
     fn eval(&self, ws: &Vector3f, wo: &Vector3f, normal: &Vector3f) -> Vector3f;
-    fn sample(&self, wi: &Vector3f, normal: &Vector3f) -> Vector3f {
+    fn sample(&self, _wi: &Vector3f, normal: &Vector3f) -> Vector3f {
         let x1 = Math::sample_uniform_distribution(0.0, 1.0);
         let x2 = Math::sample_uniform_distribution(0.0, 1.0);
         let z = f32::abs(1.0 - 2.0 * x1);
@@ -28,6 +28,14 @@ pub trait Material : Send + Sync {
         }
         let b = c.cross(normal);
         return b * local_dir.x + c * local_dir.y + normal * local_dir.z;
+    }
+
+    fn pdf(&self, _wi: &Vector3f, wo: &Vector3f, normal: &Vector3f) -> f32 {
+        if wo.dot(normal) > f32::EPSILON {
+            return 0.5 / PI;
+        } else {
+            return 0.0
+        }
     }
 }
 
@@ -58,7 +66,12 @@ impl Material for LitMaterial {
         return self.emission.clone();
     }
 
-    fn eval(&self, ws: &Vector3f, wo: &Vector3f, normal: &Vector3f) -> Vector3f {
-        !todo!()
+    fn eval(&self, _ws: &Vector3f, wo: &Vector3f, normal: &Vector3f) -> Vector3f {
+        let cosalpha = normal.dot(wo);
+        if cosalpha > 0.0 {
+            return &self.albedo / PI;
+        } else {
+            return Vector3f::zero();
+        }
     }
 }

@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 
 use crate::domain::domain::{Axis, Intersection, Ray};
+use crate::math::Math;
 use crate::mesh::object::Object;
 use crate::bvh::bounds::Bounds3;
 
@@ -28,6 +29,14 @@ impl BVH {
             return Intersection::new();
         }
         return BVH::intersect_internal(self.root.as_ref(), ray);
+    }
+
+    pub fn sample(&self) -> (Intersection, f32) {
+        let root_node = self.root.as_ref().unwrap();
+        let p = f32::sqrt(Math::sample_uniform_distribution(0.0, 1.0)) * root_node.area;
+        let (inter, mut pdf) = self.get_sample(root_node, p);
+        pdf /= root_node.area;
+        return (inter, pdf);
     }
 
     fn build_recursively(&self, mut primitives: Vec<Arc<dyn Object>>) -> Box<BVHNode> {
@@ -138,6 +147,23 @@ impl BVH {
             left
         } else {
             right
+        }
+    }
+
+    fn get_sample(&self, node: &Box<BVHNode>, p: f32) -> (Intersection, f32) {
+        if node.left.is_none() || node.right.is_none() {
+            assert!(node.object.is_some());
+            let (inter, mut pdf) = node.object.as_ref().unwrap().sample();
+            pdf *= node.area;
+            return (inter, pdf);
+        }
+
+        let left_node = node.left.as_ref().unwrap();
+        let right_node = node.right.as_ref().unwrap();
+        if p < left_node.area {
+            return self.get_sample(left_node, p)
+        } else {
+            return self.get_sample(right_node, p - left_node.area);
         }
     }
 }
