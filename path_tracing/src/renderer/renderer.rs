@@ -4,6 +4,7 @@ use crate::math::vector::Vector3f;
 use crate::renderer::texture::RenderTextureSetMode;
 use crate::scene::scene::Scene;
 use crate::renderer::framebuffer::FrameBuffer;
+use crate::util::logutil::LogUtil;
 
 pub struct Renderer {
     pub fbo: Option<FrameBuffer>,
@@ -43,8 +44,10 @@ impl Renderer {
                     rt.set(i, j, color, RenderTextureSetMode::Add);
                 }
             }
+            LogUtil::log_progress("casting rays", j as f32 / scene.height as f32);
         }
-
+        LogUtil::log_progress("casting rays", 1.0);
+        println!();
         Ok(())
     }
 }

@@ -2,15 +2,16 @@ use std::sync::Arc;
 use tobj;
 
 use crate::{
-    bvh::{bvh::BVH, bounds::Bounds3}, material::material::Material, math::vector::Vector3f, mesh::triangle::Triangle,
+    bvh::{bvh::BVH, bounds::Bounds3}, material::material::Material, math::vector::Vector3f, mesh::triangle::Triangle, domain::domain::Intersection,
 };
 
 use super::object::Object;
 
 pub struct Model {
-    pub triangles: Vec<Triangle>,
+    pub triangles: Vec<Arc<Triangle>>,
     pub material: Arc<dyn Material>,
     pub bvh: Option<BVH>,
+    pub area: f32,
     pub bounds: Bounds3
 }
 
@@ -20,6 +21,7 @@ impl Model {
             triangles: vec![],
             material: Arc::clone(&material),
             bvh: None,
+            area: 0.0,
             bounds: Bounds3::zero()
         };
         model.load(path);
@@ -45,9 +47,9 @@ impl Model {
             p_min.x = f32::min(p_min.x, vertex.x);
             p_min.y = f32::min(p_min.y, vertex.y);
             p_min.z = f32::min(p_min.z, vertex.z);
-            p_max.x = f32::min(p_max.x, vertex.x);
-            p_max.y = f32::min(p_max.y, vertex.y);
-            p_max.z = f32::min(p_max.z, vertex.z);
+            p_max.x = f32::max(p_max.x, vertex.x);
+            p_max.y = f32::max(p_max.y, vertex.y);
+            p_max.z = f32::max(p_max.z, vertex.z);
 
             vertices.push(vertex);
         }
@@ -64,9 +66,11 @@ impl Model {
 
         self.bounds = Bounds3 { p_min, p_max };
 
+        let mut area: f32 = 0.0;
         let primitives = self.triangles.iter()
             .map(|triangle| {
-                let obj: Arc<dyn Object> = Arc::new(triangle.clone());
+                let obj: Arc<dyn Object> = Arc::clone(triangle) as _;
+                area += obj.get_area();
                 obj
             })
             .collect();
@@ -77,11 +81,29 @@ impl Model {
 }
 
 impl Object for Model {
-    fn intersect(&self, ray: &crate::domain::domain::Ray) -> crate::domain::domain::Intersection {
-        todo!()
+    fn get_area(&self) -> f32 {
+        return self.area
     }
 
-    fn sample(&self) -> (crate::domain::domain::Intersection, f32) {
-        todo!()
+    fn get_bounds(&self) -> Bounds3 {
+        return self.bounds.clone();
+    }
+
+    fn intersect(&self, ray: &crate::domain::domain::Ray) -> crate::domain::domain::Intersection {
+        if let Some(bvh) = self.bvh.as_ref() {
+            return bvh.intersect(ray);
+        }
+        return Intersection::new();
+    }
+
+    fn sample(&self) -> (Intersection, f32) {
+        if self.bvh.is_none() {
+            return (Intersection::new(), 0.0)
+        }
+
+        let (mut inter, area) = self.bvh.as_ref().unwrap().sample();
+        inter.emit = self.material.get_emission();
+        return (inter, area);
+
     }
 }

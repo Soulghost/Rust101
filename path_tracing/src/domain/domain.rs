@@ -41,7 +41,7 @@ pub struct Intersection {
     pub tcoords: Vector3f,
     pub normal: Vector3f,
     pub emit: Vector3f,
-    pub distance: f64,
+    pub distance: f32,
     pub obj: Option<Arc<dyn Object>>,
     pub material: Option<Arc<dyn Material>>
 }
@@ -54,7 +54,7 @@ impl Intersection {
             tcoords: Vector3f::zero(),
             normal: Vector3f::zero(),
             emit: Vector3f::zero(),
-            distance: f64::MAX,
+            distance: f32::MAX,
             obj: None,
             material: None
         }

@@ -11,9 +11,18 @@ impl Bounds3 {
         Bounds3 { p_min: Vector3f::zero(), p_max: Vector3f::zero() }
     }
 
+    pub fn clone(&self) -> Bounds3 {
+        Bounds3 { p_min: self.p_min.clone(), p_max: self.p_max.clone() }
+    }
+
     pub fn union(&mut self, b: &Bounds3) {
         self.p_min = Vector3f::min(&self.p_min, &b.p_min);
         self.p_max = Vector3f::max(&self.p_max, &b.p_max);
+    }
+
+    pub fn union_point(&mut self, p: &Vector3f) {
+        self.p_min = Vector3f::min(&self.p_min, &p);
+        self.p_max = Vector3f::max(&self.p_max, &p);
     }
 
     pub fn center(&self) -> Vector3f {

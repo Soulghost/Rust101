@@ -2,10 +2,5 @@
     "rust-analyzer.linkedProjects": [
         "./Cargo.toml"
     ],
-    "rust-analyzer.showUnlinkedFileNotification": false,
-    "files.associations": {
-        "*.usf": "hlsl",
-        "*.ush": "hlsl",
-        "vector": "cpp"
-    }
+    "rust-analyzer.showUnlinkedFileNotification": false
 }

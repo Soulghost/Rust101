@@ -1,4 +1,5 @@
-use std::{sync::Arc};
+use core::panic;
+use std::sync::Arc;
 
 use crate::{math::{vector::Vector3f, Math}, mesh::{model::Model, object::Object}, bvh::bvh::BVH, domain::domain::{Ray, Intersection}};
 
@@ -76,13 +77,16 @@ impl Scene {
 
         // directional lighting
         let mut l_dir = Vector3f::zero();
+        if hit.material.is_none() {
+            panic!("the material is none, is hit? {}", hit.hit);
+        }
         let hit_mat = hit.material.as_ref().unwrap();
-        let hit_to_light_dis = inter_light.coords.distance_sq(&hit.coords) as f64;
+        let hit_to_light_dis = inter_light.coords.distance_sq(&hit.coords);
         let shadow_check_inter = self.bvh.as_ref().unwrap().intersect(
             &Ray::new(&hit.coords, &ws, 0.0)
         );
         let occluder_dis = shadow_check_inter.distance * shadow_check_inter.distance;
-        if occluder_dis - hit_to_light_dis > -f64::EPSILON {
+        if occluder_dis - hit_to_light_dis > -f32::EPSILON {
             // not in shadow
             let f_r = hit_mat.eval(&ws, &wo, &hit.normal);
             l_dir = &hit.emit // L_i
@@ -97,7 +101,16 @@ impl Scene {
         let mut l_indir = Vector3f::zero();
         if Math::sample_uniform_distribution(0.0, 1.0) < self.russian_roulette {
             let sample_dir = hit_mat.sample(&-wo, &hit.normal).normalize();
-            
+            let indirect_inter = self.bvh.as_ref().unwrap().intersect(&Ray::new(&hit.coords, &sample_dir, 0.0));
+            if indirect_inter.hit {
+                let indirect_pdf = hit_mat.pdf(&-wo, &sample_dir, &hit.normal);
+                let f_r = hit.material.as_ref().unwrap().eval(&sample_dir, &wo, &hit.normal);
+                l_indir = &self.shade(&indirect_inter, &-&sample_dir)
+                            * &f_r
+                            * sample_dir.dot(&hit.normal)
+                            / indirect_pdf
+                            / self.russian_roulette
+            }
         }
         return l_dir + l_indir;
     }
@@ -110,7 +123,7 @@ impl Scene {
             }
         }
 
-        let p = Math::sample_uniform_distribution(0.0, 1.0);
+        let p = Math::sample_uniform_distribution(0.0, 1.0) * emit_area_sum;
         emit_area_sum = 0.0;
         for obj in self.models.iter() {
             if obj.material.has_emission() {

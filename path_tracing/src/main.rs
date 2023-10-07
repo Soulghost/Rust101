@@ -1,5 +1,4 @@
-use std::{sync::Arc};
-
+use std::sync::Arc;
 use material::material::LitMaterial;
 use math::vector::Vector3f;
 use mesh::model::Model;
@@ -14,6 +13,7 @@ pub mod math;
 pub mod domain;
 pub mod material;
 pub mod renderer;
+pub mod util;
 
 fn main() {
     let width = 1280;
