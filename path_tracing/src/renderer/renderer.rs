@@ -41,7 +41,7 @@ impl Renderer {
                     let color = scene.cast_ray(&ray).unwrap_or_else(|err| {
                         panic!("scene cast error {}", err);
                     });
-                    rt.set(i, j, color, RenderTextureSetMode::Add);
+                    rt.set(i, j, color / (self.spp as f32), RenderTextureSetMode::Add);
                 }
             }
             LogUtil::log_progress("casting rays", j as f32 / scene.height as f32);

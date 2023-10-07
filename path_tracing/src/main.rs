@@ -16,14 +16,15 @@ pub mod renderer;
 pub mod util;
 
 fn main() {
-    let width = 1280;
-    let height = 960;
+    let width = 200; // 1280
+    let height = 200; // 960
+    let spp = 16; // 16
     let mut scene = Scene::new(width, 
                                       height, 
                                   40.0, 
               Vector3f::new(0.235294, 0.67451, 0.843137), 
                      0.8,
-                     16);
+                     spp);
 
     let white_mat = Arc::new(
         LitMaterial::new(&Vector3f::new(0.725, 0.71, 0.68), &Vector3f::zero())
@@ -78,4 +79,8 @@ fn main() {
         panic!("[Main] renderer error {}", err);
     });
     println!("[Main] end rendering...");
+
+    renderer.fbo.as_mut().unwrap().get_render_target().dump_to_file("/tmp/result.ppm").unwrap_or_else(|err| {
+        panic!("[Main] dump rt to file error {}", err);
+    });
 }

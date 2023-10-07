@@ -1,3 +1,5 @@
+use std::{fs::File, io::Write};
+
 use crate::math::vector::Vector3f;
 
 pub type Bitmap2D = Vec<Vec<Vector3f>>;
@@ -45,5 +47,30 @@ impl RenderTexture {
 
     pub fn get_height(&self) -> u32 {
         self.height
+    }
+
+    pub fn dump_to_file(&self, path: &str) -> std::io::Result<()> {
+        let mut file = File::create(path)?;
+        let head = format!("P6\n{} {}\n255\n", self.width, self.height);
+        file.write_all(head.as_bytes())?;
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let colors = &self.buffer[y as usize][x as usize];
+                let buf: [u8; 3] = [
+                    self.encode_color_component(colors.x),
+                    self.encode_color_component(colors.y),
+                    self.encode_color_component(colors.z)
+                ];
+                file.write(&buf)?;
+            }   
+        }
+        Ok(())
+    }
+
+    fn encode_color_component(&self, c: f32) -> u8 {
+        let val = f32::clamp(c, 0.0, 1.0);
+        let result = 255.0 * f32::powf(val, 0.6);
+        println!("the color is {}", result as u8);
+        return result as u8;
     }
 }
