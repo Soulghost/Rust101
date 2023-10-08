@@ -46,17 +46,14 @@ impl Triangle {
             normal: self.normal.clone(), 
             area: self.area, 
             material: Arc::clone(&self.material),
-            weak_self: Weak::clone(&self.weak_self)
+            // weak_self: Weak::clone(&self.weak_self)
         }
     }
 }
 
 impl Object for Triangle {
     fn get_bounds(&self) -> Bounds3 {
-        let mut b = Bounds3 {
-            p_min: self.v0.clone(),
-            p_max: self.v1.clone()
-        };
+        let mut b = Bounds3::from_points(&self.v0, &self.v1);
         b.union_point(&self.v2);
         return b;
     }
@@ -67,7 +64,7 @@ impl Object for Triangle {
 
     fn intersect(&self, ray: &Ray) -> Intersection {
         // backface culling
-        if ray.direction.dot(&self.normal) > f32::EPSILON {
+        if ray.direction.dot(&self.normal) > 0.0 {
             return Intersection::new();
         }
 

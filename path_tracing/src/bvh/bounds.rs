@@ -11,6 +11,21 @@ impl Bounds3 {
         Bounds3 { p_min: Vector3f::zero(), p_max: Vector3f::zero() }
     }
 
+    pub fn from_points(p1: &Vector3f, p2: &Vector3f) -> Bounds3 {
+        Bounds3 { 
+            p_min: Vector3f::new(
+                f32::min(p1.x, p2.x),
+                f32::min(p1.y, p2.y),
+                f32::min(p1.z, p2.z),
+            ), 
+            p_max: Vector3f::new(
+                f32::max(p1.x, p2.x),
+                f32::max(p1.y, p2.y),
+                f32::max(p1.z, p2.z),
+            ) 
+        }
+    }
+
     pub fn clone(&self) -> Bounds3 {
         Bounds3 { p_min: self.p_min.clone(), p_max: self.p_max.clone() }
     }
