@@ -3,7 +3,6 @@ use std::sync::{Arc, Weak};
 use crate::{material::material::Material, bvh::bounds::Bounds3, domain::domain::{Ray, Intersection}, math::{vector::Vector3f, Math}};
 use super::object::Object;
 
-#[derive(Clone)]
 pub struct Triangle {
     pub v0: Vector3f,
     pub v1: Vector3f,
@@ -13,27 +12,30 @@ pub struct Triangle {
     pub normal: Vector3f,
     pub area: f32,
     pub material: Arc<dyn Material>,
-    weak_self: Weak<Triangle>
+    // weak_self: Weak<Triangle>
 }
 
 impl Triangle {
-    pub fn new(v0: &Vector3f, v1: &Vector3f, v2: &Vector3f, material: Arc<dyn Material>) -> Arc<Triangle> {
+    pub fn new(v0: &Vector3f, v1: &Vector3f, v2: &Vector3f, material: Arc<dyn Material>) -> Triangle {
         let e1 = v1 - v0;
         let e2 = v2 - v0; 
-        let mut s = Arc::new(Triangle { 
+        let mut s = Triangle { 
             v0: v0.clone(),
             v1: v1.clone(),
             v2: v2.clone(),
             normal: e1.cross(&e2).normalize(), 
-            area: e1.cross(&e2).length(), 
-            weak_self: Weak::new(),
+            area: e1.cross(&e2).length() * 0.5, 
+            // weak_self: Weak::new(),
             material,
             e1, e2,
-        });
+        };
 
-        let weak_s = Arc::downgrade(&s);
-        Arc::make_mut(&mut s).weak_self = weak_s;
-        s   
+        // let weak_s = Arc::downgrade(&s);
+        // // Arc::make_mut(&mut s).weak_self = weak_s;
+        // let _ = std::mem::replace(&mut Arc::get_mut(&mut s).unwrap().weak_self, weak_s);
+        // println!("area of the triangle {}", s.weak_self.upgrade().as_ref().unwrap().area);
+        // s   
+        s
     }
 
     pub fn clone(&self) -> Triangle {
@@ -46,17 +48,14 @@ impl Triangle {
             normal: self.normal.clone(), 
             area: self.area, 
             material: Arc::clone(&self.material),
-            weak_self: Weak::clone(&self.weak_self)
+            // weak_self: Weak::clone(&self.weak_self)
         }
     }
 }
 
 impl Object for Triangle {
     fn get_bounds(&self) -> Bounds3 {
-        let mut b = Bounds3 {
-            p_min: self.v0.clone(),
-            p_max: self.v1.clone()
-        };
+        let mut b = Bounds3::from_points(&self.v0, &self.v1);
         b.union_point(&self.v2);
         return b;
     }
@@ -67,7 +66,7 @@ impl Object for Triangle {
 
     fn intersect(&self, ray: &Ray) -> Intersection {
         // backface culling
-        if ray.direction.dot(&self.normal) > f32::EPSILON {
+        if ray.direction.dot(&self.normal) > 0.0 {
             return Intersection::new();
         }
 
@@ -98,16 +97,7 @@ impl Object for Triangle {
             inter.normal = self.normal.clone();
             inter.distance = t;
             inter.material = Some(Arc::clone(&self.material));
-            let shared_self = self.weak_self.upgrade();
-            match shared_self {
-                Some(obj) => {
-                    let tmp: Arc<dyn Object> = obj as _;
-                    inter.obj = Some(Arc::clone(&tmp));
-                }
-                None => {
-                    inter.obj = None
-                }
-            }
+            // inter.obj = 
             inter
         } else {
             Intersection::new()

@@ -60,8 +60,8 @@ impl Vector3f {
 
     pub fn cross(&self, rhs: &Vector3f) -> Vector3f {
         Vector3f { 
-            x: self.y * rhs.z - self.z - rhs.y, 
-            y: self.z * rhs.x - self.x - rhs.z, 
+            x: self.y * rhs.z - self.z * rhs.y, 
+            y: self.z * rhs.x - self.x * rhs.z, 
             z: self.x * rhs.y - self.y * rhs.x
         }
     }

@@ -7,16 +7,16 @@ use crate::{
 
 use super::object::Object;
 
-pub struct Model {
-    pub triangles: Vec<Arc<Triangle>>,
+pub struct Model<'a> {
+    pub triangles: Vec<Triangle>,
     pub material: Arc<dyn Material>,
-    pub bvh: Option<BVH>,
+    pub bvh: Option<BVH<'a>>,
     pub area: f32,
     pub bounds: Bounds3
 }
 
-impl Model {
-    pub fn new(path: &str, material: Arc<dyn Material>) -> Model {
+impl<'a> Model<'a> {
+    pub fn new(path: &str, material: Arc<dyn Material>) -> Model<'a> {
         let mut model = Model {
             triangles: vec![],
             material: Arc::clone(&material),
@@ -69,7 +69,7 @@ impl Model {
         let mut area: f32 = 0.0;
         let primitives = self.triangles.iter()
             .map(|triangle| {
-                let obj: Arc<dyn Object> = Arc::clone(triangle) as _;
+                let obj: &'a dyn Object = triangle;
                 area += obj.get_area();
                 obj
             })
@@ -80,7 +80,7 @@ impl Model {
     }
 }
 
-impl Object for Model {
+impl<'a> Object for Model<'a> {
     fn get_area(&self) -> f32 {
         return self.area
     }

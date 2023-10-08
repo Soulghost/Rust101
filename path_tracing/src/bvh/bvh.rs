@@ -6,13 +6,13 @@ use crate::math::Math;
 use crate::mesh::object::Object;
 use crate::bvh::bounds::Bounds3;
 
-pub struct BVH {
-    pub primitives: Vec<Arc<dyn Object>>,
-    root: Option<Box<BVHNode>>
+pub struct BVH<'a> {
+    pub primitives: Vec<&'a dyn Object>,
+    root: Option<Box<BVHNode<'a>>>
 }
 
-impl BVH {
-    pub fn new(primitives: Vec<Arc<dyn Object>>) -> BVH {
+impl<'a> BVH<'a> {
+    pub fn new(primitives: Vec<&'a dyn Object>) -> BVH {
         BVH {
             root: None,
             primitives
@@ -20,8 +20,9 @@ impl BVH {
     }
 
     pub fn build(&mut self) {
-        let tmp = self.primitives.clone();
-        self.root = Some(self.build_recursively(tmp))
+        let mut tmp = self.primitives.clone();
+        let node = self.build_recursively(&mut tmp);
+        self.root = Some(node);
     }
 
     pub fn intersect(&self, ray: &Ray) -> Intersection {
@@ -39,7 +40,7 @@ impl BVH {
         return (inter, pdf);
     }
 
-    fn build_recursively(&self, mut primitives: Vec<Arc<dyn Object>>) -> Box<BVHNode> {
+    fn build_recursively(&self, primitives: &mut Vec<&'a dyn Object>) -> Box<BVHNode<'a>> {
         let mut root = BVHNode::new();
         let mut bounds = Bounds3::zero();
         for object in primitives.iter() {
@@ -48,18 +49,18 @@ impl BVH {
         
         let n_objs = primitives.len();
         if n_objs == 1 {
-            let obj = &primitives[0];
+            let obj = primitives[0];
             root.bounds = obj.get_bounds();
-            root.object = Some(Arc::clone(obj));
+            root.object = Some(obj);
             root.left = None;
             root.right = None;
             root.area = obj.get_area();
         } else if n_objs == 2 {
-            let left = vec![Arc::clone(&primitives[0])];
-            root.left = Some(self.build_recursively(left));
+            let mut left = vec![primitives[0]];
+            root.left = Some(self.build_recursively(&mut left));
 
-            let right = vec![Arc::clone(&primitives[1])];
-            root.right = Some(self.build_recursively(right));
+            let mut right = vec![primitives[1]];
+            root.right = Some(self.build_recursively(&mut right));
 
             root.bounds = Bounds3::union2(
                 &root.left.as_ref().unwrap().bounds,
@@ -114,10 +115,10 @@ impl BVH {
                 }
             }
             let middle_index = primitives.len() / 2;
-            let left = primitives[0..middle_index].to_vec();
-            let right = primitives[middle_index..].to_vec();
-            root.left = Some(self.build_recursively(left));
-            root.right = Some(self.build_recursively(right));
+            let mut left = primitives[0..middle_index].to_vec();
+            let mut right = primitives[middle_index..].to_vec();
+            root.left = Some(self.build_recursively(&mut left));
+            root.right = Some(self.build_recursively(&mut right));
             root.bounds = Bounds3::union2(&root.left.as_ref().unwrap().bounds, 
                                           &root.right.as_ref().unwrap().bounds);
             root.area = root.left.as_ref().unwrap().area +
@@ -168,19 +169,19 @@ impl BVH {
     }
 }
 
-pub struct BVHNode {
+pub struct BVHNode<'a> {
     pub bounds: Bounds3,
-    pub left: Option<Box<BVHNode>>,
-    pub right: Option<Box<BVHNode>>,
-    pub object: Option<Arc<dyn Object>>,
+    pub left: Option<Box<BVHNode<'a>>>,
+    pub right: Option<Box<BVHNode<'a>>>,
+    pub object: Option<&'a dyn Object>,
     pub area: f32,
     pub split_axis: Axis,
     pub first_primitive_offset: i32,
     pub n_primitives: i32
 }
 
-impl BVHNode {
-    pub fn new() -> Box<BVHNode> {
+impl<'a> BVHNode<'a> {
+    pub fn new() -> Box<BVHNode<'a>> {
         Box::new(BVHNode { 
             bounds: Bounds3::zero(), 
             left: None, 

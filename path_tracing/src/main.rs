@@ -42,24 +42,18 @@ fn main() {
         LitMaterial::new(&light_color,
         &light_emission_color)
     );
-    let floor = Arc::new(
-        Model::new("./resource/cornellbox/floor.obj", white_mat.clone())
-    );
-    let shortbox = Arc::new(
-        Model::new("./resource/cornellbox/shortbox.obj", white_mat.clone())
-    );
-    let tallbox = Arc::new(
-        Model::new("./resource/cornellbox/tallbox.obj", white_mat.clone())
-    );
-    let left = Arc::new(
-        Model::new("./resource/cornellbox/left.obj", red_mat.clone())
-    );
-    let right = Arc::new(
-        Model::new("./resource/cornellbox/right.obj", green_mat.clone())
-    );
-    let light = Arc::new(
-        Model::new("./resource/cornellbox/light.obj", light_mat.clone())
-    );
+    let floor = 
+        Model::new("./resource/cornellbox/floor.obj", white_mat.clone());
+    let shortbox =
+        Model::new("./resource/cornellbox/shortbox.obj", white_mat.clone());
+    let tallbox =
+        Model::new("./resource/cornellbox/tallbox.obj", white_mat.clone());
+    let left =
+        Model::new("./resource/cornellbox/left.obj", red_mat.clone());
+    let right = 
+        Model::new("./resource/cornellbox/right.obj", green_mat.clone());
+    let light =
+        Model::new("./resource/cornellbox/light.obj", light_mat.clone());
       
     scene.add(floor);
     scene.add(shortbox);

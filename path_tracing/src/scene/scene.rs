@@ -3,24 +3,24 @@ use std::sync::Arc;
 
 use crate::{math::{vector::Vector3f, Math}, mesh::{model::Model, object::Object}, bvh::bvh::BVH, domain::domain::{Ray, Intersection}};
 
-pub struct Scene {
+pub struct Scene<'a> {
     pub width: u32,
     pub height: u32,
     pub fov: f32,
     pub camera_background_color: Vector3f,
     pub russian_roulette: f32,
     pub sample_per_pixel: u32,
-    models: Vec<Arc<Model>>,
-    bvh: Option<BVH>
+    models: Vec<Model<'a>>,
+    bvh: Option<BVH<'a>>
 }
 
-impl Scene {
+impl<'a> Scene<'a> {
     pub fn new(width: u32, 
                height: u32,
                fov: f32,
                camera_background_color: Vector3f,
                russian_roulette: f32,
-               sample_per_pixel: u32) -> Scene {
+               sample_per_pixel: u32) -> Scene<'a> {
         Scene { 
             width, 
             height, 
@@ -33,17 +33,14 @@ impl Scene {
         }
     }
 
-    pub fn add(&mut self, model: Arc<Model>) {
+    pub fn add(&mut self, model: Model<'a>) {
         self.models.push(model);
     }
 
     pub fn build_bvh(&mut self) {
         println!("[Scene] Generating BVH...");
         let models = self.models.iter()
-            .map(|model| {
-                let obj: Arc<dyn Object> = model.clone();
-                obj
-            })
+            .map(|model| model as &'_ dyn Object)
             .collect();
         let mut bvh = BVH::new(models);
         bvh.build();
