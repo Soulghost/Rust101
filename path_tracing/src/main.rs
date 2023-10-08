@@ -1,3 +1,5 @@
+extern crate lazy_static;
+
 use std::sync::Arc;
 use material::material::LitMaterial;
 use math::vector::Vector3f;

@@ -1,7 +1,11 @@
-use std::sync::{Arc, Weak};
+use std::{sync::{Arc, Mutex}, collections::HashMap};
 
 use crate::{material::material::Material, bvh::bounds::Bounds3, domain::domain::{Ray, Intersection}, math::{vector::Vector3f, Math}};
 use super::object::Object;
+
+lazy_static::lazy_static! {
+    static ref TRIANGLE_TABLE: Mutex<HashMap<usize, Arc<Triangle>>> = Mutex::new(HashMap::new());
+}
 
 #[derive(Clone)]
 pub struct Triangle {
@@ -13,26 +17,26 @@ pub struct Triangle {
     pub normal: Vector3f,
     pub area: f32,
     pub material: Arc<dyn Material>,
-    weak_self: Weak<Triangle>
+    // weak_self: Weak<Triangle>
 }
 
 impl Triangle {
     pub fn new(v0: &Vector3f, v1: &Vector3f, v2: &Vector3f, material: Arc<dyn Material>) -> Arc<Triangle> {
         let e1 = v1 - v0;
         let e2 = v2 - v0; 
-        let mut s = Arc::new(Triangle { 
+        let s = Arc::new(Triangle { 
             v0: v0.clone(),
             v1: v1.clone(),
             v2: v2.clone(),
             normal: e1.cross(&e2).normalize(), 
             area: e1.cross(&e2).length(), 
-            weak_self: Weak::new(),
+            // weak_self: Weak::new(),
             material,
             e1, e2,
         });
 
-        let weak_s = Arc::downgrade(&s);
-        Arc::make_mut(&mut s).weak_self = weak_s;
+        let mut table = TRIANGLE_TABLE.lock().unwrap();
+        table.insert(Arc::as_ptr(&s) as usize, Arc::clone(&s));
         s   
     }
 
@@ -95,14 +99,18 @@ impl Object for Triangle {
             inter.normal = self.normal.clone();
             inter.distance = t;
             inter.material = Some(Arc::clone(&self.material));
-            let shared_self = self.weak_self.upgrade();
+
+            let ptr = self as *const _ as usize;
+            let table = TRIANGLE_TABLE.lock().unwrap();
+            let shared_self = table.get(&ptr);
             match shared_self {
                 Some(obj) => {
-                    let tmp: Arc<dyn Object> = obj as _;
+                    let tmp: Arc<dyn Object> = Arc::clone(obj) as _;
                     inter.obj = Some(Arc::clone(&tmp));
                 }
                 None => {
-                    inter.obj = None
+                    inter.obj = None;
+                    panic!("impossible")
                 }
             }
             inter
