@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, rc::Rc};
 use material::material::LitMaterial;
 use math::vector::Vector3f;
 use mesh::model::Model;
@@ -42,22 +42,22 @@ fn main() {
         LitMaterial::new(&light_color,
         &light_emission_color)
     );
-    let floor = Arc::new(
+    let floor = Rc::new(
         Model::new("./resource/cornellbox/floor.obj", white_mat.clone())
     );
-    let shortbox = Arc::new(
+    let shortbox = Rc::new(
         Model::new("./resource/cornellbox/shortbox.obj", white_mat.clone())
     );
-    let tallbox = Arc::new(
+    let tallbox = Rc::new(
         Model::new("./resource/cornellbox/tallbox.obj", white_mat.clone())
     );
-    let left = Arc::new(
+    let left = Rc::new(
         Model::new("./resource/cornellbox/left.obj", red_mat.clone())
     );
-    let right = Arc::new(
+    let right = Rc::new(
         Model::new("./resource/cornellbox/right.obj", green_mat.clone())
     );
-    let light = Arc::new(
+    let light = Rc::new(
         Model::new("./resource/cornellbox/light.obj", light_mat.clone())
     );
       

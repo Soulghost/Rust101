@@ -1,5 +1,5 @@
 use core::panic;
-use std::sync::Arc;
+use std::{sync::Arc, rc::Rc};
 
 use crate::{math::{vector::Vector3f, Math}, mesh::{model::Model, object::Object}, bvh::bvh::BVH, domain::domain::{Ray, Intersection}};
 
@@ -10,7 +10,7 @@ pub struct Scene {
     pub camera_background_color: Vector3f,
     pub russian_roulette: f32,
     pub sample_per_pixel: u32,
-    models: Vec<Arc<Model>>,
+    models: Vec<Rc<Model>>,
     bvh: Option<BVH>
 }
 
@@ -33,17 +33,14 @@ impl Scene {
         }
     }
 
-    pub fn add(&mut self, model: Arc<Model>) {
+    pub fn add(&mut self, model: Rc<Model>) {
         self.models.push(model);
     }
 
     pub fn build_bvh(&mut self) {
         println!("[Scene] Generating BVH...");
         let models = self.models.iter()
-            .map(|model| {
-                let obj: Arc<dyn Object> = model.clone();
-                obj
-            })
+            .map(|model| Rc::clone(model) as Rc<dyn Object>)
             .collect();
         let mut bvh = BVH::new(models);
         bvh.build();

@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::domain::domain::{Axis, Intersection, Ray};
@@ -7,12 +8,12 @@ use crate::mesh::object::Object;
 use crate::bvh::bounds::Bounds3;
 
 pub struct BVH {
-    pub primitives: Vec<Arc<dyn Object>>,
+    pub primitives: Vec<Rc<dyn Object>>,
     root: Option<Box<BVHNode>>
 }
 
 impl BVH {
-    pub fn new(primitives: Vec<Arc<dyn Object>>) -> BVH {
+    pub fn new(primitives: Vec<Rc<dyn Object>>) -> BVH {
         BVH {
             root: None,
             primitives
@@ -39,7 +40,7 @@ impl BVH {
         return (inter, pdf);
     }
 
-    fn build_recursively(&self, mut primitives: Vec<Arc<dyn Object>>) -> Box<BVHNode> {
+    fn build_recursively(&self, mut primitives: Vec<Rc<dyn Object>>) -> Box<BVHNode> {
         let mut root = BVHNode::new();
         let mut bounds = Bounds3::zero();
         for object in primitives.iter() {
@@ -50,15 +51,15 @@ impl BVH {
         if n_objs == 1 {
             let obj = &primitives[0];
             root.bounds = obj.get_bounds();
-            root.object = Some(Arc::clone(obj));
+            root.object = Some(Rc::clone(obj));
             root.left = None;
             root.right = None;
             root.area = obj.get_area();
         } else if n_objs == 2 {
-            let left = vec![Arc::clone(&primitives[0])];
+            let left = vec![Rc::clone(&primitives[0])];
             root.left = Some(self.build_recursively(left));
 
-            let right = vec![Arc::clone(&primitives[1])];
+            let right = vec![Rc::clone(&primitives[1])];
             root.right = Some(self.build_recursively(right));
 
             root.bounds = Bounds3::union2(
@@ -172,7 +173,7 @@ pub struct BVHNode {
     pub bounds: Bounds3,
     pub left: Option<Box<BVHNode>>,
     pub right: Option<Box<BVHNode>>,
-    pub object: Option<Arc<dyn Object>>,
+    pub object: Option<Rc<dyn Object>>,
     pub area: f32,
     pub split_axis: Axis,
     pub first_primitive_offset: i32,

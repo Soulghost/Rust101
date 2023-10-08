@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, rc::Rc};
 
 use crate::{math::vector::Vector3f, mesh::object::Object, material::material::Material};
 
@@ -42,7 +42,7 @@ pub struct Intersection {
     pub normal: Vector3f,
     pub emit: Vector3f,
     pub distance: f32,
-    pub obj: Option<Arc<dyn Object>>,
+    pub obj: Option<Rc<dyn Object>>,
     pub material: Option<Arc<dyn Material>>
 }
 

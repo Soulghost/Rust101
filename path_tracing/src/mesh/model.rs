@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, rc::Rc};
 use tobj;
 
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
 use super::object::Object;
 
 pub struct Model {
-    pub triangles: Vec<Arc<Triangle>>,
+    pub triangles: Vec<Rc<Triangle>>,
     pub material: Arc<dyn Material>,
     pub bvh: Option<BVH>,
     pub area: f32,
@@ -69,7 +69,7 @@ impl Model {
         let mut area: f32 = 0.0;
         let primitives = self.triangles.iter()
             .map(|triangle| {
-                let obj: Arc<dyn Object> = Arc::clone(triangle) as _;
+                let obj: Rc<dyn Object> = Rc::clone(triangle) as _;
                 area += obj.get_area();
                 obj
             })

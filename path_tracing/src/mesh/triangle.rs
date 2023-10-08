@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak};
+use std::{sync::Arc, rc::Rc};
 
 use crate::{material::material::Material, bvh::bounds::Bounds3, domain::domain::{Ray, Intersection}, math::{vector::Vector3f, Math}};
 use super::object::Object;
@@ -13,26 +13,27 @@ pub struct Triangle {
     pub normal: Vector3f,
     pub area: f32,
     pub material: Arc<dyn Material>,
-    weak_self: Weak<Triangle>
+    weak_self: std::rc::Weak<Triangle>
 }
 
 impl Triangle {
-    pub fn new(v0: &Vector3f, v1: &Vector3f, v2: &Vector3f, material: Arc<dyn Material>) -> Arc<Triangle> {
+    pub fn new(v0: &Vector3f, v1: &Vector3f, v2: &Vector3f, material: Arc<dyn Material>) -> Rc<Triangle> {
         let e1 = v1 - v0;
         let e2 = v2 - v0; 
-        let mut s = Arc::new(Triangle { 
+        let mut s = Rc::new(Triangle { 
             v0: v0.clone(),
             v1: v1.clone(),
             v2: v2.clone(),
             normal: e1.cross(&e2).normalize(), 
             area: e1.cross(&e2).length(), 
-            weak_self: Weak::new(),
+            weak_self: std::rc::Weak::new(),
             material,
             e1, e2,
         });
 
-        let weak_s = Arc::downgrade(&s);
-        Arc::make_mut(&mut s).weak_self = weak_s;
+        let weak_s = Rc::downgrade(&s);
+        Rc::get_mut(&mut s).unwrap().weak_self = weak_s;
+        // Rc::make_mut(&mut s).weak_self = weak_s;
         s   
     }
 
@@ -46,7 +47,7 @@ impl Triangle {
             normal: self.normal.clone(), 
             area: self.area, 
             material: Arc::clone(&self.material),
-            weak_self: Weak::clone(&self.weak_self)
+            weak_self: std::rc::Weak::clone(&self.weak_self)
         }
     }
 }
@@ -101,8 +102,8 @@ impl Object for Triangle {
             let shared_self = self.weak_self.upgrade();
             match shared_self {
                 Some(obj) => {
-                    let tmp: Arc<dyn Object> = obj as _;
-                    inter.obj = Some(Arc::clone(&tmp));
+                    let tmp: Rc<dyn Object> = obj as _;
+                    inter.obj = Some(Rc::clone(&tmp));
                 }
                 None => {
                     inter.obj = None
