@@ -53,6 +53,7 @@ impl Renderer {
         LogUtil::log_progress("casting rays", 1.0);
         println!();
         println!("[Renderer] total hit count {}", hit_count);
+        Scene::print_stat();
         Ok(())
     }
 }

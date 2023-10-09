@@ -18,9 +18,9 @@ pub mod renderer;
 pub mod util;
 
 fn main() {
-    let width = 784; // 1280
-    let height = 784; // 960
-    let spp = 16; // 16
+    let width = 200; // 784
+    let height = 200; // 784
+    let spp = 4; // 16
     let mut scene = Scene::new(width, 
                                       height, 
                                   40.0, 

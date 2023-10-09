@@ -1,5 +1,10 @@
 use core::panic;
-use std::sync::Arc;
+use std::{sync::{Arc, Mutex}, ops::Add};
+
+lazy_static::lazy_static! {
+    static ref STAT_DIRECTIONAL_LIGHT_HIT: Mutex<u32> = Mutex::new(0);
+    static ref STAT_INDIRECTIONAL_LIGHT_HIT: Mutex<u32> = Mutex::new(0);
+}
 
 use crate::{math::{vector::Vector3f, Math}, mesh::{model::Model, object::Object}, bvh::bvh::BVH, domain::domain::{Ray, Intersection}};
 
@@ -90,6 +95,8 @@ impl Scene {
                     * cosine_theta_prime
                     / hit_to_light_dis
                     / pdf;
+            let mut count = STAT_DIRECTIONAL_LIGHT_HIT.lock().unwrap();
+            *count += 1;
         }
 
         // indirectional lighting
@@ -105,6 +112,8 @@ impl Scene {
                             * sample_dir.dot(&hit.normal)
                             / indirect_pdf
                             / self.russian_roulette;
+                let mut count = STAT_INDIRECTIONAL_LIGHT_HIT.lock().unwrap();
+                *count += 1;
             }
         }
         return l_dir + l_indir;
@@ -130,5 +139,13 @@ impl Scene {
         }
 
         panic!("impossible");
+    }
+
+    // for debug
+    pub fn print_stat() {
+        println!("[Scene] light hit count {}, indirectional light hit count {}",
+            STAT_DIRECTIONAL_LIGHT_HIT.lock().unwrap(),
+            STAT_INDIRECTIONAL_LIGHT_HIT.lock().unwrap()
+        );
     }
 }
