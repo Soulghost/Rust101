@@ -12,7 +12,8 @@ pub struct Model {
     pub material: Arc<dyn Material>,
     pub bvh: Option<BVH>,
     pub area: f32,
-    pub bounds: Bounds3
+    pub bounds: Bounds3,
+    pub path: String
 }
 
 impl Model {
@@ -22,7 +23,8 @@ impl Model {
             material: Arc::clone(&material),
             bvh: None,
             area: 0.0,
-            bounds: Bounds3::zero()
+            bounds: Bounds3::zero(),
+            path: String::from(path)
         };
         model.load(path);
         return model;
@@ -60,7 +62,7 @@ impl Model {
             let v1 = vertices[indicies[i + 1] as usize].clone();
             let v2 = vertices[indicies[i + 2] as usize].clone();
             self.triangles.push(
-                Triangle::new(&v0, &v1, &v2, Arc::clone(&self.material))
+                Triangle::new(&format!("Triangle({})", &self.get_name()), &v0, &v1, &v2, Arc::clone(&self.material))
             );
         }
 
@@ -74,6 +76,8 @@ impl Model {
                 obj
             })
             .collect();
+        self.area = area;
+        
         let mut bvh = BVH::new(primitives);
         bvh.build();
         self.bvh = Some(bvh);
@@ -81,6 +85,10 @@ impl Model {
 }
 
 impl Object for Model {
+    fn get_name(&self) -> String {
+        format!("Model({})", self.path)
+    }
+
     fn get_area(&self) -> f32 {
         return self.area
     }

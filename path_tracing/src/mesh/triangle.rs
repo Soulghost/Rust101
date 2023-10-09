@@ -9,6 +9,7 @@ lazy_static::lazy_static! {
 
 #[derive(Clone)]
 pub struct Triangle {
+    pub name: String,
     pub v0: Vector3f,
     pub v1: Vector3f,
     pub v2: Vector3f,
@@ -21,15 +22,16 @@ pub struct Triangle {
 }
 
 impl Triangle {
-    pub fn new(v0: &Vector3f, v1: &Vector3f, v2: &Vector3f, material: Arc<dyn Material>) -> Arc<Triangle> {
+    pub fn new(name: &String, v0: &Vector3f, v1: &Vector3f, v2: &Vector3f, material: Arc<dyn Material>) -> Arc<Triangle> {
         let e1 = v1 - v0;
         let e2 = v2 - v0; 
         let s = Arc::new(Triangle { 
+            name: name.clone(),
             v0: v0.clone(),
             v1: v1.clone(),
             v2: v2.clone(),
             normal: e1.cross(&e2).normalize(), 
-            area: e1.cross(&e2).length(), 
+            area: e1.cross(&e2).length() * 0.5, 
             // weak_self: Weak::new(),
             material,
             e1, e2,
@@ -42,6 +44,7 @@ impl Triangle {
 
     pub fn clone(&self) -> Triangle {
         Triangle { 
+            name: self.name.clone(),
             v0: self.v0.clone(), 
             v1: self.v1.clone(),
             v2: self.v2.clone(), 
@@ -56,6 +59,11 @@ impl Triangle {
 }
 
 impl Object for Triangle {
+    // for debug
+    fn get_name(&self) -> String {
+        return self.name.clone()
+    }
+
     fn get_bounds(&self) -> Bounds3 {
         let mut b = Bounds3::from_points(&self.v0, &self.v1);
         b.union_point(&self.v2);

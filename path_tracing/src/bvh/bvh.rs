@@ -66,6 +66,7 @@ impl BVH {
                 &root.right.as_ref().unwrap().bounds);
             root.area = root.left.as_ref().unwrap().area
                       + root.right.as_ref().unwrap().area;
+            println!("result of union {}, area {}", root.bounds, root.area);
         } else {
             let mut max_bounds = Bounds3::zero();
             for primitive in primitives.iter() {
@@ -116,6 +117,7 @@ impl BVH {
             let middle_index = primitives.len() / 2;
             let left = primitives[0..middle_index].to_vec();
             let right = primitives[middle_index..].to_vec();
+            assert!(left.len() + right.len() == primitives.len());
             root.left = Some(self.build_recursively(left));
             root.right = Some(self.build_recursively(right));
             root.bounds = Bounds3::union2(&root.left.as_ref().unwrap().bounds, 

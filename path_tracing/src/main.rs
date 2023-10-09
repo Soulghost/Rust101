@@ -20,7 +20,7 @@ pub mod util;
 fn main() {
     let width = 200; // 1280
     let height = 200; // 960
-    let spp = 16; // 16
+    let spp = 4; // 16
     let mut scene = Scene::new(width, 
                                       height, 
                                   40.0, 
@@ -38,8 +38,8 @@ fn main() {
         LitMaterial::new(&Vector3f::new(0.14, 0.45, 0.091), &Vector3f::zero())
     );
 
-    let light_color = Vector3f::new(0.747 + 0.058, 0.747 + 0.258, 0.747) * 8.0 + Vector3f::new(0.740 + 0.287, 0.740 + 0.160, 0.740) * 15.6 + Vector3f::new(0.737 + 0.642, 0.737 + 0.159,0.737) * 18.4;
-    let light_emission_color = Vector3f::new(0.65, 0.65, 0.65);
+    let light_emission_color = Vector3f::new(0.747 + 0.058, 0.747 + 0.258, 0.747) * 8.0 + Vector3f::new(0.740 + 0.287, 0.740 + 0.160, 0.740) * 15.6 + Vector3f::new(0.737 + 0.642, 0.737 + 0.159,0.737) * 18.4;
+    let light_color = Vector3f::new(0.65, 0.65, 0.65);
     let light_mat = Arc::new(
         LitMaterial::new(&light_color,
         &light_emission_color)
@@ -82,7 +82,7 @@ fn main() {
     });
     println!("[Main] end rendering...");
 
-    renderer.fbo.as_mut().unwrap().get_render_target().dump_to_file("/tmp/result.ppm").unwrap_or_else(|err| {
+    renderer.fbo.as_mut().unwrap().get_render_target().dump_to_file("out/result.ppm").unwrap_or_else(|err| {
         panic!("[Main] dump rt to file error {}", err);
     });
 }

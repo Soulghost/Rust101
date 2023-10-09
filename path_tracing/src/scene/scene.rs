@@ -40,10 +40,7 @@ impl Scene {
     pub fn build_bvh(&mut self) {
         println!("[Scene] Generating BVH...");
         let models = self.models.iter()
-            .map(|model| {
-                let obj: Arc<dyn Object> = model.clone();
-                obj
-            })
+            .map(|model| model.clone() as Arc<dyn Object>)
             .collect();
         let mut bvh = BVH::new(models);
         bvh.build();
