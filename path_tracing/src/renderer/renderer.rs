@@ -31,6 +31,7 @@ impl Renderer {
         println!("[Renderer] render info {} x {}, aspect {}, spp {}", scene.width, scene.height, aspect, scene.sample_per_pixel);
         
         println!("[Renderer] rt size {} x {}", rt.get_width(), rt.get_height());
+        let mut hit_count = 0;
         for j in 0..scene.height {
             for i in 0..scene.width {
                 let x = (2.0 * (i as f64 + 0.5) / scene.width as f64 - 1.0) * aspect * scale;
@@ -38,9 +39,12 @@ impl Renderer {
                 let dir = Vector3f::new(-x, y, 1.0).normalize();
                 let ray = Ray::new(&eye_pos, &dir, 0.0);
                 for _ in 0..scene.sample_per_pixel {
-                    let color = scene.cast_ray(&ray).unwrap_or_else(|err| {
+                    let (color, hit) = scene.cast_ray(&ray).unwrap_or_else(|err| {
                         panic!("scene cast error {}", err);
                     });
+                    if hit {
+                        hit_count += 1;
+                    }
                     rt.set(i, j, color / (self.spp as f32), RenderTextureSetMode::Add);
                 }
             }
@@ -48,6 +52,7 @@ impl Renderer {
         }
         LogUtil::log_progress("casting rays", 1.0);
         println!();
+        println!("[Renderer] total hit count {}", hit_count);
         Ok(())
     }
 }

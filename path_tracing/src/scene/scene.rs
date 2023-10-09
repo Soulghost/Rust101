@@ -47,16 +47,16 @@ impl Scene {
         self.bvh = Some(bvh);
     }
 
-    pub fn cast_ray(&self, ray: &Ray) -> Result<Vector3f, &'static str> {
+    pub fn cast_ray(&self, ray: &Ray) -> Result<(Vector3f, bool), &'static str> {
         if self.bvh.is_none() {
             return Err("bvh not generated");
         }
         let inter = self.bvh.as_ref().unwrap().intersect(ray);
         if !inter.hit {
-            return Ok(self.camera_background_color.clone());
+            return Ok((self.camera_background_color.clone(), false));
         }
         let re_dir = -&ray.direction;
-        return Ok(self.shade(&inter, &re_dir));
+        return Ok((self.shade(&inter, &re_dir), true));
     }
 
     fn shade(&self, hit: &Intersection, wo: &Vector3f) -> Vector3f {
