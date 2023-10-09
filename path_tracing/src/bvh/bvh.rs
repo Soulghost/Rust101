@@ -66,7 +66,6 @@ impl BVH {
                 &root.right.as_ref().unwrap().bounds);
             root.area = root.left.as_ref().unwrap().area
                       + root.right.as_ref().unwrap().area;
-            println!("result of union {}, area {}", root.bounds, root.area);
         } else {
             let mut max_bounds = Bounds3::zero();
             for primitive in primitives.iter() {

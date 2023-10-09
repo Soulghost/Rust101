@@ -31,7 +31,7 @@ pub trait Material : Send + Sync {
     }
 
     fn pdf(&self, _wi: &Vector3f, wo: &Vector3f, normal: &Vector3f) -> f64 {
-        if wo.dot(normal) > f64::EPSILON {
+        if wo.dot(normal) > 0.0 {
             return 0.5 / PI;
         } else {
             return 0.0

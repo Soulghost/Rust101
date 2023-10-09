@@ -74,9 +74,7 @@ impl Scene {
 
         // directional lighting
         let mut l_dir = Vector3f::zero();
-        if hit.material.is_none() {
-            panic!("the material is none, is hit? {}", hit.hit);
-        }
+        assert!(hit.material.is_some());
         let hit_mat = hit.material.as_ref().unwrap();
         let hit_to_light_dis = inter_light.coords.distance_sq(&hit.coords);
         let shadow_check_inter = self.bvh.as_ref().unwrap().intersect(
@@ -86,7 +84,7 @@ impl Scene {
         if occluder_dis - hit_to_light_dis > -f64::EPSILON {
             // not in shadow
             let f_r = hit_mat.eval(&ws, &wo, &hit.normal);
-            l_dir = &hit.emit // L_i
+            l_dir = &inter_light.emit // L_i
                     * &f_r 
                     * cosine_theta
                     * cosine_theta_prime
@@ -99,14 +97,14 @@ impl Scene {
         if Math::sample_uniform_distribution(0.0, 1.0) < self.russian_roulette {
             let sample_dir = hit_mat.sample(&-wo, &hit.normal).normalize();
             let indirect_inter = self.bvh.as_ref().unwrap().intersect(&Ray::new(&hit.coords, &sample_dir, 0.0));
-            if indirect_inter.hit {
+            if indirect_inter.hit && !indirect_inter.material.as_ref().unwrap().has_emission() {
                 let indirect_pdf = hit_mat.pdf(&-wo, &sample_dir, &hit.normal);
-                let f_r = hit.material.as_ref().unwrap().eval(&sample_dir, &wo, &hit.normal);
+                let f_r = hit_mat.eval(&sample_dir, &wo, &hit.normal);
                 l_indir = &self.shade(&indirect_inter, &-&sample_dir)
                             * &f_r
                             * sample_dir.dot(&hit.normal)
                             / indirect_pdf
-                            / self.russian_roulette
+                            / self.russian_roulette;
             }
         }
         return l_dir + l_indir;

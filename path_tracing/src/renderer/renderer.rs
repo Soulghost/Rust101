@@ -45,7 +45,7 @@ impl Renderer {
                     if hit {
                         hit_count += 1;
                     }
-                    rt.set(i, j, color / (self.spp as f32), RenderTextureSetMode::Add);
+                    rt.set(i, j, color / self.spp, RenderTextureSetMode::Add);
                 }
             }
             LogUtil::log_progress("casting rays", j as f32 / scene.height as f32);

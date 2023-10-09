@@ -112,6 +112,5 @@ impl Object for Model {
         let (mut inter, area) = self.bvh.as_ref().unwrap().sample();
         inter.emit = self.material.get_emission();
         return (inter, area);
-
     }
 }
