@@ -16,7 +16,7 @@ pub struct Triangle {
     pub e1: Vector3f,
     pub e2: Vector3f,
     pub normal: Vector3f,
-    pub area: f32,
+    pub area: f64,
     pub material: Arc<dyn Material>,
     // weak_self: Weak<Triangle>
 }
@@ -70,7 +70,7 @@ impl Object for Triangle {
         return b;
     }
 
-    fn get_area(&self) -> f32 {
+    fn get_area(&self) -> f64 {
         return self.area;
     }
 
@@ -82,7 +82,7 @@ impl Object for Triangle {
 
         let pvec = ray.direction.cross(&self.e2);
         let det = self.e1.dot(&pvec);
-        if f32::abs(det) < f32::EPSILON {
+        if f64::abs(det) < f64::EPSILON {
             return Intersection::new();
         }
 
@@ -127,8 +127,8 @@ impl Object for Triangle {
         }
     }
 
-    fn sample(&self) -> (Intersection, f32) {
-        let x = f32::sqrt(Math::sample_uniform_distribution(0.0, 1.0));
+    fn sample(&self) -> (Intersection, f64) {
+        let x = f64::sqrt(Math::sample_uniform_distribution(0.0, 1.0));
         let y = Math::sample_uniform_distribution(0.0, 1.0);
         let mut inter = Intersection::new();
         inter.coords = &self.v0 * (1.0 - x) 

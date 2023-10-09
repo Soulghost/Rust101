@@ -67,9 +67,9 @@ impl RenderTexture {
         Ok(())
     }
 
-    fn encode_color_component(&self, c: f32) -> u8 {
-        let val = f32::clamp(c, 0.0, 1.0);
-        let result = 255.0 * f32::powf(val, 0.6);
+    fn encode_color_component(&self, c: f64) -> u8 {
+        let val = f64::clamp(c, 0.0, 1.0);
+        let result = 255.0 * f64::powf(val, 0.6);
         return result as u8;
     }
 }

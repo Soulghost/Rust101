@@ -25,16 +25,16 @@ impl Renderer {
         }
 
         let rt = self.fbo.as_mut().unwrap().get_render_target();
-        let scale = f32::tan(Math::radian(scene.fov * 0.5));
-        let aspect = scene.width as f32 / scene.height as f32;
+        let scale = f64::tan(Math::radian(scene.fov * 0.5));
+        let aspect = scene.width as f64 / scene.height as f64;
         let eye_pos = Vector3f::new(278.0, 273.0, -800.0);
         println!("[Renderer] render info {} x {}, aspect {}, spp {}", scene.width, scene.height, aspect, scene.sample_per_pixel);
         
         println!("[Renderer] rt size {} x {}", rt.get_width(), rt.get_height());
         for j in 0..scene.height {
             for i in 0..scene.width {
-                let x = (2.0 * (i as f32 + 0.5) / scene.width as f32 - 1.0) * aspect * scale;
-                let y = (1.0 - 2.0 * (j as f32 + 0.5) / scene.height as f32) * scale;
+                let x = (2.0 * (i as f64 + 0.5) / scene.width as f64 - 1.0) * aspect * scale;
+                let y = (1.0 - 2.0 * (j as f64 + 0.5) / scene.height as f64) * scale;
                 let dir = Vector3f::new(-x, y, 1.0).normalize();
                 let ray = Ray::new(&eye_pos, &dir, 0.0);
                 for _ in 0..scene.sample_per_pixel {

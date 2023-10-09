@@ -1,4 +1,4 @@
-use std::f32::{EPSILON, consts::PI};
+use std::f64::{EPSILON, consts::PI};
 
 use crate::math::{vector::Vector3f, Math};
 
@@ -10,28 +10,28 @@ pub trait Material : Send + Sync {
     fn sample(&self, _wi: &Vector3f, normal: &Vector3f) -> Vector3f {
         let x1 = Math::sample_uniform_distribution(0.0, 1.0);
         let x2 = Math::sample_uniform_distribution(0.0, 1.0);
-        let z = f32::abs(1.0 - 2.0 * x1);
-        let r = f32::sqrt(1.0 - z * z);
+        let z = f64::abs(1.0 - 2.0 * x1);
+        let r = f64::sqrt(1.0 - z * z);
         let phi = 2.0 * PI * x2;
         let local_dir = Vector3f::new(
-            r * f32::cos(phi),
-            r * f32::sin(phi),
+            r * f64::cos(phi),
+            r * f64::sin(phi),
             z
         );
         let c;
-        if f32::abs(normal.x) > f32::abs(normal.y) {
-            let inv_len = 1.0 / f32::sqrt(normal.x * normal.x + normal.z * normal.z);
+        if f64::abs(normal.x) > f64::abs(normal.y) {
+            let inv_len = 1.0 / f64::sqrt(normal.x * normal.x + normal.z * normal.z);
             c = Vector3f::new(normal.z * inv_len, 0.0, -normal.x * inv_len);
         } else {
-            let inv_len = 1.0 / f32::sqrt(normal.y * normal.y + normal.z * normal.z);
+            let inv_len = 1.0 / f64::sqrt(normal.y * normal.y + normal.z * normal.z);
             c = Vector3f::new(0.0, normal.z * inv_len, -normal.y * inv_len);
         }
         let b = c.cross(normal);
         return b * local_dir.x + c * local_dir.y + normal * local_dir.z;
     }
 
-    fn pdf(&self, _wi: &Vector3f, wo: &Vector3f, normal: &Vector3f) -> f32 {
-        if wo.dot(normal) > f32::EPSILON {
+    fn pdf(&self, _wi: &Vector3f, wo: &Vector3f, normal: &Vector3f) -> f64 {
+        if wo.dot(normal) > f64::EPSILON {
             return 0.5 / PI;
         } else {
             return 0.0

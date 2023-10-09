@@ -6,7 +6,7 @@ pub trait Object {
     }
 
     fn get_bounds(&self) -> Bounds3;
-    fn get_area(&self) -> f32;
+    fn get_area(&self) -> f64;
     fn intersect(&self, ray: &Ray) -> Intersection;
-    fn sample(&self) -> (Intersection, f32);
+    fn sample(&self) -> (Intersection, f64);
 }

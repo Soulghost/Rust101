@@ -31,9 +31,9 @@ impl BVH {
         return BVH::intersect_internal(self.root.as_ref(), ray);
     }
 
-    pub fn sample(&self) -> (Intersection, f32) {
+    pub fn sample(&self) -> (Intersection, f64) {
         let root_node = self.root.as_ref().unwrap();
-        let p = f32::sqrt(Math::sample_uniform_distribution(0.0, 1.0)) * root_node.area;
+        let p = f64::sqrt(Math::sample_uniform_distribution(0.0, 1.0)) * root_node.area;
         let (inter, mut pdf) = self.get_sample(root_node, p);
         pdf /= root_node.area;
         return (inter, pdf);
@@ -152,7 +152,7 @@ impl BVH {
         }
     }
 
-    fn get_sample(&self, node: &Box<BVHNode>, p: f32) -> (Intersection, f32) {
+    fn get_sample(&self, node: &Box<BVHNode>, p: f64) -> (Intersection, f64) {
         if node.left.is_none() || node.right.is_none() {
             assert!(node.object.is_some());
             let (inter, mut pdf) = node.object.as_ref().unwrap().sample();
@@ -175,7 +175,7 @@ pub struct BVHNode {
     pub left: Option<Box<BVHNode>>,
     pub right: Option<Box<BVHNode>>,
     pub object: Option<Arc<dyn Object>>,
-    pub area: f32,
+    pub area: f64,
     pub split_axis: Axis,
     pub first_primitive_offset: i32,
     pub n_primitives: i32

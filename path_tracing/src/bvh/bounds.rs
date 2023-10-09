@@ -1,4 +1,4 @@
-use std::{f32::EPSILON, fmt::Display};
+use std::{f64::EPSILON, fmt::Display};
 
 use crate::{math::vector::Vector3f, domain::domain::{Axis, Ray}};
 pub struct Bounds3 {
@@ -14,14 +14,14 @@ impl Bounds3 {
     pub fn from_points(p1: &Vector3f, p2: &Vector3f) -> Bounds3 {
         Bounds3 { 
             p_min: Vector3f::new(
-                f32::min(p1.x, p2.x),
-                f32::min(p1.y, p2.y),
-                f32::min(p1.z, p2.z),
+                f64::min(p1.x, p2.x),
+                f64::min(p1.y, p2.y),
+                f64::min(p1.z, p2.z),
             ), 
             p_max: Vector3f::new(
-                f32::max(p1.x, p2.x),
-                f32::max(p1.y, p2.y),
-                f32::max(p1.z, p2.z),
+                f64::max(p1.x, p2.x),
+                f64::max(p1.y, p2.y),
+                f64::max(p1.z, p2.z),
             ) 
         }
     }
@@ -91,8 +91,8 @@ impl Bounds3 {
         t_exit3.y = if !is_dir_neg[1] { t_min.y } else { t_max.y };
         t_exit3.z = if !is_dir_neg[2] { t_min.z } else { t_max.z };
 
-        let t_enter = f32::max(t_enter3.x, f32::max(t_enter3.y, t_enter3.z));
-        let t_exit = f32::min(t_exit3.x, f32::min(t_exit3.y, t_exit3.z));
+        let t_enter = f64::max(t_enter3.x, f64::max(t_enter3.y, t_enter3.z));
+        let t_exit = f64::min(t_exit3.x, f64::min(t_exit3.y, t_exit3.z));
         return t_exit >= t_enter && t_exit >= 0.0;
     }
 

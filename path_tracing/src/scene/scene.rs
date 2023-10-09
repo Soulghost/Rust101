@@ -6,9 +6,9 @@ use crate::{math::{vector::Vector3f, Math}, mesh::{model::Model, object::Object}
 pub struct Scene {
     pub width: u32,
     pub height: u32,
-    pub fov: f32,
+    pub fov: f64,
     pub camera_background_color: Vector3f,
-    pub russian_roulette: f32,
+    pub russian_roulette: f64,
     pub sample_per_pixel: u32,
     models: Vec<Arc<Model>>,
     bvh: Option<BVH>
@@ -17,9 +17,9 @@ pub struct Scene {
 impl Scene {
     pub fn new(width: u32, 
                height: u32,
-               fov: f32,
+               fov: f64,
                camera_background_color: Vector3f,
-               russian_roulette: f32,
+               russian_roulette: f64,
                sample_per_pixel: u32) -> Scene {
         Scene { 
             width, 
@@ -83,7 +83,7 @@ impl Scene {
             &Ray::new(&hit.coords, &ws, 0.0)
         );
         let occluder_dis = shadow_check_inter.distance * shadow_check_inter.distance;
-        if occluder_dis - hit_to_light_dis > -f32::EPSILON {
+        if occluder_dis - hit_to_light_dis > -f64::EPSILON {
             // not in shadow
             let f_r = hit_mat.eval(&ws, &wo, &hit.normal);
             l_dir = &hit.emit // L_i
@@ -112,8 +112,8 @@ impl Scene {
         return l_dir + l_indir;
     }
 
-    fn sample_light(&self) -> (Intersection, f32) {
-        let mut emit_area_sum: f32 = 0.0;
+    fn sample_light(&self) -> (Intersection, f64) {
+        let mut emit_area_sum: f64 = 0.0;
         for obj in self.models.iter() {
             if obj.material.has_emission() {
                 emit_area_sum += obj.get_area();

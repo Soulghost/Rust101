@@ -11,7 +11,7 @@ pub struct Model {
     pub triangles: Vec<Arc<Triangle>>,
     pub material: Arc<dyn Material>,
     pub bvh: Option<BVH>,
-    pub area: f32,
+    pub area: f64,
     pub bounds: Bounds3,
     pub path: String
 }
@@ -36,22 +36,22 @@ impl Model {
         if models.len() != 1 {
             panic!("Invalid OBJ format: only single mesh models are supported");
         }
-        let mut p_min = Vector3f::new(f32::MAX, f32::MAX, f32::MAX);
-        let mut p_max = Vector3f::new(f32::MIN, f32::MIN, f32::MIN);
+        let mut p_min = Vector3f::new(f64::MAX, f64::MAX, f64::MAX);
+        let mut p_max = Vector3f::new(f64::MIN, f64::MIN, f64::MIN);
         let mesh = &models[0].mesh;
         let mut vertices: Vec<Vector3f> = vec![];
         let positions = &mesh.positions;
         for i in (0..positions.len()).step_by(3) {
-            let vertex = Vector3f::new(positions[i], 
-                                                 positions[i + 1], 
-                                                 positions[i + 2]);
+            let vertex = Vector3f::new(f64::from(positions[i]), 
+                                                 f64::from(positions[i + 1]), 
+                                                 f64::from(positions[i + 2]));
 
-            p_min.x = f32::min(p_min.x, vertex.x);
-            p_min.y = f32::min(p_min.y, vertex.y);
-            p_min.z = f32::min(p_min.z, vertex.z);
-            p_max.x = f32::max(p_max.x, vertex.x);
-            p_max.y = f32::max(p_max.y, vertex.y);
-            p_max.z = f32::max(p_max.z, vertex.z);
+            p_min.x = f64::min(p_min.x, vertex.x);
+            p_min.y = f64::min(p_min.y, vertex.y);
+            p_min.z = f64::min(p_min.z, vertex.z);
+            p_max.x = f64::max(p_max.x, vertex.x);
+            p_max.y = f64::max(p_max.y, vertex.y);
+            p_max.z = f64::max(p_max.z, vertex.z);
 
             vertices.push(vertex);
         }
@@ -68,7 +68,7 @@ impl Model {
 
         self.bounds = Bounds3 { p_min, p_max };
 
-        let mut area: f32 = 0.0;
+        let mut area: f64 = 0.0;
         let primitives = self.triangles.iter()
             .map(|triangle| {
                 let obj: Arc<dyn Object> = Arc::clone(triangle) as _;
@@ -89,7 +89,7 @@ impl Object for Model {
         format!("Model({})", self.path)
     }
 
-    fn get_area(&self) -> f32 {
+    fn get_area(&self) -> f64 {
         return self.area
     }
 
@@ -104,7 +104,7 @@ impl Object for Model {
         return Intersection::new();
     }
 
-    fn sample(&self) -> (Intersection, f32) {
+    fn sample(&self) -> (Intersection, f64) {
         if self.bvh.is_none() {
             return (Intersection::new(), 0.0)
         }

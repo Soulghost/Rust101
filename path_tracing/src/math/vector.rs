@@ -1,14 +1,14 @@
-use std::{ops, f32::EPSILON, fmt::Display};
+use std::{ops, fmt::Display};
 
 #[derive(Clone)]
 pub struct Vector3f {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32
+    pub x: f64,
+    pub y: f64,
+    pub z: f64
 }
 
 impl Vector3f {
-    pub fn new(x: f32, y: f32, z: f32) -> Vector3f {
+    pub fn new(x: f64, y: f64, z: f64) -> Vector3f {
         Vector3f { x, y, z }
     }
 
@@ -22,17 +22,17 @@ impl Vector3f {
 
     pub fn min(p1: &Vector3f, p2: &Vector3f) -> Vector3f {
         Vector3f { 
-            x: f32::min(p1.x, p2.x),
-            y: f32::min(p1.y, p2.y),
-            z: f32::min(p1.z, p2.z),
+            x: f64::min(p1.x, p2.x),
+            y: f64::min(p1.y, p2.y),
+            z: f64::min(p1.z, p2.z),
         }
     }
 
     pub fn max(p1: &Vector3f, p2: &Vector3f) -> Vector3f {
         Vector3f { 
-            x: f32::max(p1.x, p2.x),
-            y: f32::max(p1.y, p2.y),
-            z: f32::max(p1.z, p2.z),
+            x: f64::max(p1.x, p2.x),
+            y: f64::max(p1.y, p2.y),
+            z: f64::max(p1.z, p2.z),
         }
     }
 
@@ -40,21 +40,21 @@ impl Vector3f {
         let mag2 = self.x * self.x +
                    self.y * self.y +
                    self.z * self.z;
-        if mag2 > EPSILON {
-            let inv_mag = 1.0 / f32::sqrt(mag2);
+        if mag2 > f64::EPSILON {
+            let inv_mag = 1.0 / f64::sqrt(mag2);
             return self * inv_mag
         } else {
             self.clone()
         }
     }
 
-    pub fn length(&self) -> f32 {
-        return f32::sqrt(self.x * self.x +
+    pub fn length(&self) -> f64 {
+        return f64::sqrt(self.x * self.x +
                          self.y * self.y +
                          self.z * self.z);
     }
 
-    pub fn dot(&self, rhs: &Vector3f) -> f32 {
+    pub fn dot(&self, rhs: &Vector3f) -> f64 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z 
     }
 
@@ -66,7 +66,7 @@ impl Vector3f {
         }
     }
 
-    pub fn distance_sq(&self, rhs: &Vector3f) -> f32 {
+    pub fn distance_sq(&self, rhs: &Vector3f) -> f64 {
         (self.x - rhs.x) * (self.x - rhs.x) +
         (self.y - rhs.y) * (self.y - rhs.y) +
         (self.z - rhs.z) * (self.z - rhs.z)
@@ -81,7 +81,7 @@ where
     type Output = Vector3f;
 
     fn mul(self, rhs: T) -> Self::Output {
-        let val = f64::from(rhs) as f32;
+        let val = f64::from(rhs);
         Vector3f {
             x: self.x * val,
             y: self.y * val,
@@ -97,7 +97,7 @@ where
     type Output = Vector3f;
 
     fn mul(self, rhs: T) -> Self::Output {
-        let val = f64::from(rhs) as f32;
+        let val = f64::from(rhs);
         Vector3f {
             x: self.x * val,
             y: self.y * val,
@@ -113,7 +113,7 @@ where
     type Output = Vector3f;
 
     fn div(self, rhs: T) -> Self::Output {
-        let val = f64::from(rhs) as f32;
+        let val = f64::from(rhs);
         Vector3f {
             x: self.x / val,
             y: self.y / val,
@@ -129,7 +129,7 @@ where
     type Output = Vector3f;
 
     fn div(self, rhs: T) -> Self::Output {
-        let val = f64::from(rhs) as f32;
+        let val = f64::from(rhs);
         Vector3f {
             x: self.x / val,
             y: self.y / val,
