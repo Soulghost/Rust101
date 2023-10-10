@@ -1,6 +1,6 @@
 use crate::{bvh::bounds::Bounds3, domain::domain::{Intersection, Ray}};
 
-pub trait Object {
+pub trait Object : Send + Sync {
     fn get_name(&self) -> String {
         String::from("Object")
     }

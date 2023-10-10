@@ -1,6 +1,6 @@
 extern crate lazy_static;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use material::material::LitMaterial;
 use math::vector::Vector3f;
 use mesh::model::Model;
@@ -20,13 +20,13 @@ pub mod util;
 fn main() {
     let width = 200; // 784
     let height = 200; // 784
-    let spp = 4; // 16
+    let spp = 16; // 16
     let mut scene = Scene::new(width, 
                                       height, 
-                                  40.0, 
-              Vector3f::new(0.235294, 0.67451, 0.843137), 
-                     0.8,
-                     spp);
+                                 40.0, 
+             Vector3f::new(0.235294, 0.67451, 0.843137), 
+                    0.8,
+                    spp);
 
     let white_mat = Arc::new(
         LitMaterial::new(&Vector3f::new(0.725, 0.71, 0.68), &Vector3f::zero())
@@ -69,20 +69,22 @@ fn main() {
     scene.add(left);
     scene.add(right);
     scene.add(light);
-
     scene.build_bvh();
 
+    let final_scene = Arc::new(scene);
     let mut renderer = Renderer::new();
     let fbo = FrameBuffer::new(width, height);
-    renderer.fbo = Some(fbo);
+    renderer.fbo = Some(Arc::new(Mutex::new(fbo)));
 
     println!("[Main] start rendering...");
-    renderer.render(&scene).unwrap_or_else(|err| {
+    renderer.render(final_scene).unwrap_or_else(|err| {
         panic!("[Main] renderer error {}", err);
     });
     println!("[Main] end rendering...");
 
-    renderer.fbo.as_mut().unwrap().get_render_target().dump_to_file("out/result.ppm").unwrap_or_else(|err| {
+    let mut fbo = renderer.fbo.as_ref().unwrap().lock().unwrap();
+    let rt = fbo.get_render_target();
+    rt.dump_to_file("out/result.ppm").unwrap_or_else(|err| {
         panic!("[Main] dump rt to file error {}", err);
     });
 }

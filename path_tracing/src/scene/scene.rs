@@ -95,7 +95,6 @@ impl Scene {
                     * cosine_theta_prime
                     / hit_to_light_dis
                     / pdf;
-            // println!("dis {}, cos {}, cos_prime {}", hit_to_light_dis, cosine_theta, cosine_theta_prime);
             let mut count = STAT_DIRECTIONAL_LIGHT_HIT.lock().unwrap();
             *count += 1;
         }
