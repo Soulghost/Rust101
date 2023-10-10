@@ -1,4 +1,8 @@
-use std::{fs::File, io::Write};
+use std::{fs::File, io::Write, sync::Mutex};
+
+lazy_static::lazy_static! {
+    static ref MAX_COLOR: Mutex<f64> = Mutex::new(f64::MIN);
+}
 
 use crate::math::vector::Vector3f;
 
@@ -64,10 +68,15 @@ impl RenderTexture {
                 file.write(&buf)?;
             }   
         }
+        println!("[Texture] max color is {}", *MAX_COLOR.lock().unwrap());
         Ok(())
     }
 
     fn encode_color_component(&self, c: f64) -> u8 {
+        let mut cur = MAX_COLOR.lock().unwrap();
+        if c > *cur {
+            *cur = c;
+        }
         let val = f64::clamp(c, 0.0, 1.0);
         let result = 255.0 * f64::powf(val, 0.6);
         return result as u8;

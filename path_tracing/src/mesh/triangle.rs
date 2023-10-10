@@ -33,7 +33,7 @@ impl Triangle {
             normal: e1.cross(&e2).normalize(), 
             area: e1.cross(&e2).length() * 0.5, 
             // weak_self: Weak::new(),
-            material,
+            material: Arc::clone(&material),
             e1, e2,
         });
 

@@ -8,14 +8,12 @@ use crate::util::logutil::LogUtil;
 
 pub struct Renderer {
     pub fbo: Option<FrameBuffer>,
-    pub spp: u32
 }
 
 impl Renderer {
     pub fn new() -> Renderer {
         Renderer { 
-            fbo: None,
-            spp: 16
+            fbo: None
         }
     }
 
@@ -45,7 +43,7 @@ impl Renderer {
                     if hit {
                         hit_count += 1;
                     }
-                    rt.set(i, j, color / self.spp, RenderTextureSetMode::Add);
+                    rt.set(i, j, color / scene.sample_per_pixel, RenderTextureSetMode::Add);
                 }
             }
             LogUtil::log_progress("casting rays", j as f32 / scene.height as f32);
