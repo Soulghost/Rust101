@@ -18,8 +18,8 @@ pub mod renderer;
 pub mod util;
 
 fn main() {
-    let width = 200; // 784
-    let height = 200; // 784
+    let width = 600; // 784
+    let height = 600; // 784
     let spp = 16; // 16
     let mut scene = Scene::new(width, 
                                       height, 
@@ -77,7 +77,7 @@ fn main() {
     renderer.fbo = Some(Arc::new(Mutex::new(fbo)));
 
     println!("[Main] start rendering...");
-    renderer.render(final_scene).unwrap_or_else(|err| {
+    renderer.render(final_scene, 8).unwrap_or_else(|err| {
         panic!("[Main] renderer error {}", err);
     });
     println!("[Main] end rendering...");
