@@ -1,4 +1,3 @@
-use std::fmt::format;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -34,7 +33,7 @@ impl Renderer {
             let fbo_mutex = Arc::clone(self.fbo.as_ref().unwrap());
             let mut fbo = fbo_mutex.lock().unwrap();
             let rt = fbo.get_render_target();
-            println!("[Renderer] rt size {} x {}", rt.get_width(), rt.get_height());
+            println!("[Renderer] rt size {} x {}, spp {}", rt.get_width(), rt.get_height(), scene.sample_per_pixel);
         }
         
         let mut thread_handles: Vec<JoinHandle<()>> = vec![];
@@ -87,7 +86,6 @@ impl Renderer {
         for t in thread_handles {
             t.join().unwrap();
         }
-        // m.clear().unwrap();
 
         println!();
         Scene::print_stat();
