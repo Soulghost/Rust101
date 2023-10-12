@@ -1,6 +1,6 @@
 extern crate lazy_static;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use material::material::LitMaterial;
 use math::vector::Vector3f;
 use mesh::model::Model;
@@ -18,8 +18,8 @@ pub mod renderer;
 pub mod util;
 
 fn main() {
-    let width = 600; // 784
-    let height = 600; // 784
+    let width = 500; // 784
+    let height = 500; // 784
     let spp = 16; // 16
     let mut scene = Scene::new(width, 
                                       height, 
@@ -74,7 +74,7 @@ fn main() {
     let final_scene = Arc::new(scene);
     let mut renderer = Renderer::new();
     let fbo = FrameBuffer::new(width, height);
-    renderer.fbo = Some(Arc::new(Mutex::new(fbo)));
+    renderer.fbo = Some(fbo);
 
     println!("[Main] start rendering...");
     renderer.render(final_scene, 8).unwrap_or_else(|err| {
@@ -82,7 +82,7 @@ fn main() {
     });
     println!("[Main] end rendering...");
 
-    let mut fbo = renderer.fbo.as_ref().unwrap().lock().unwrap();
+    let fbo = renderer.fbo.as_mut().unwrap();
     let rt = fbo.get_render_target();
     rt.dump_to_file("out/result.ppm").unwrap_or_else(|err| {
         panic!("[Main] dump rt to file error {}", err);

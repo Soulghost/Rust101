@@ -97,7 +97,7 @@ impl Object for Model {
         return self.bounds.clone();
     }
 
-    fn intersect(&self, ray: &crate::domain::domain::Ray) -> crate::domain::domain::Intersection {
+    fn intersect(self: Arc<Self>, ray: &crate::domain::domain::Ray) -> crate::domain::domain::Intersection {
         if let Some(bvh) = self.bvh.as_ref() {
             return bvh.intersect(ray);
         }

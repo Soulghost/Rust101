@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, mpsc};
 use std::thread::{self, JoinHandle};
 
 use indicatif::{MultiProgress, ProgressStyle, ProgressBar};
@@ -11,7 +11,13 @@ use crate::scene::scene::Scene;
 use crate::renderer::framebuffer::FrameBuffer;
 
 pub struct Renderer {
-    pub fbo: Option<Arc<Mutex<FrameBuffer>>>
+    pub fbo: Option<FrameBuffer>
+}
+
+struct RenderMessage {
+    pub x: u32,
+    pub y: u32,
+    pub color: Vector3f
 }
 
 impl Renderer {
@@ -29,13 +35,10 @@ impl Renderer {
         let scale = f64::tan(Math::radian(scene.fov * 0.5));
         let aspect = scene.width as f64 / scene.height as f64;
         let eye_pos = Vector3f::new(278.0, 273.0, -800.0);
-        {
-            let fbo_mutex = Arc::clone(self.fbo.as_ref().unwrap());
-            let mut fbo = fbo_mutex.lock().unwrap();
-            let rt = fbo.get_render_target();
-            println!("[Renderer] rt size {} x {}, spp {}", rt.get_width(), rt.get_height(), scene.sample_per_pixel);
-        }
-        
+        let fbo = self.fbo.as_mut().unwrap();
+        let rt = fbo.get_render_target();
+        println!("[Renderer] rt size {} x {}, spp {}", rt.get_width(), rt.get_height(), scene.sample_per_pixel);
+
         let mut thread_handles: Vec<JoinHandle<()>> = vec![];
         let mut thread_index = 0;
 
@@ -47,18 +50,21 @@ impl Renderer {
         .unwrap()
         .progress_chars("##-");
 
+
+        let (tx, rx) = mpsc::channel::<RenderMessage>();
         m.println("ray tracing:").unwrap();
         let gap = scene.height / n_threads;
         for k in (0..scene.height).step_by(gap as usize) {
             let end = u32::min(k + gap, scene.height);
             let s = Arc::clone(&scene);
             let e = eye_pos.clone();
-            let fbo_mutex = Arc::clone(self.fbo.as_ref().unwrap());
             let index = thread_index;
             thread_index += 1;
             let pb = m.add(ProgressBar::new(((end - k) * s.width) as u64));
             pb.set_message(format!("renderer #{}", index));
             pb.set_style(m_style.clone());
+
+            let sender = tx.clone();
             let t = thread::spawn(move || {
                 for j in k..end {
                     for i in 0..s.width {
@@ -70,9 +76,12 @@ impl Renderer {
                             let (color, _) = s.cast_ray(&ray).unwrap_or_else(|err| {
                                 panic!("scene cast error {}", err);
                             });
-                            let mut fbo = fbo_mutex.lock().unwrap();
-                            let rt = fbo.get_render_target();
-                            rt.set(i, j, color / s.sample_per_pixel, RenderTextureSetMode::Add);
+                            let color = color / s.sample_per_pixel;
+                            sender.send(RenderMessage {
+                                x: i,
+                                y: j,
+                                color
+                            }).expect("renderer message send failure");
                         }
                     }
                     pb.inc(s.width as u64);
@@ -82,13 +91,13 @@ impl Renderer {
             });
             thread_handles.push(t);
         }
+        drop(tx);
         
-        for t in thread_handles {
-            t.join().unwrap();
+        for received in rx {
+            rt.set(received.x, received.y, received.color, RenderTextureSetMode::Add)
         }
 
         println!();
-        Scene::print_stat();
         Ok(())
     }
 }

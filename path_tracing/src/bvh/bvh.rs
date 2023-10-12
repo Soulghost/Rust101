@@ -139,7 +139,8 @@ impl BVH {
 
         // leaf node
         if node.left.is_none() && node.right.is_none() {
-            return node.object.as_ref().unwrap().intersect(ray);
+            let obj = Arc::clone(node.object.as_ref().unwrap());
+            return obj.intersect(ray);
         }
 
         let left = BVH::intersect_internal(node.left.as_ref(), ray);

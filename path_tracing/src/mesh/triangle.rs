@@ -33,7 +33,7 @@ impl Triangle {
             normal: e1.cross(&e2).normalize(), 
             area: e1.cross(&e2).length() * 0.5, 
             // weak_self: Weak::new(),
-            material: Arc::clone(&material),
+            material:Arc::clone(&material),
             e1, e2,
         });
 
@@ -74,7 +74,7 @@ impl Object for Triangle {
         return self.area;
     }
 
-    fn intersect(&self, ray: &Ray) -> Intersection {
+    fn intersect(self: Arc<Self>, ray: &Ray) -> Intersection {
         // backface culling
         if ray.direction.dot(&self.normal) > 0.0 {
             return Intersection::new();
@@ -108,19 +108,8 @@ impl Object for Triangle {
             inter.distance = t;
             inter.material = Some(Arc::clone(&self.material));
 
-            let ptr = self as *const _ as usize;
-            let table = TRIANGLE_TABLE.lock().unwrap();
-            let shared_self = table.get(&ptr);
-            match shared_self {
-                Some(obj) => {
-                    let tmp: Arc<dyn Object> = Arc::clone(obj) as _;
-                    inter.obj = Some(Arc::clone(&tmp));
-                }
-                None => {
-                    inter.obj = None;
-                    panic!("impossible")
-                }
-            }
+            let obj: Arc<dyn Object> = Arc::clone(&self) as _;
+            inter.obj = Some(obj);
             inter
         } else {
             Intersection::new()
