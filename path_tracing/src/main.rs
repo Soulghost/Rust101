@@ -18,9 +18,10 @@ pub mod renderer;
 pub mod util;
 
 fn main() {
-    let width = 500; // 784
-    let height = 500; // 784
-    let spp = 16; // 16
+    let width = 500; 
+    let height = 500; 
+    let spp = 128; 
+    let n_threads = 12;
     let mut scene = Scene::new(width, 
                                       height, 
                                  40.0, 
@@ -77,7 +78,7 @@ fn main() {
     renderer.fbo = Some(fbo);
 
     println!("[Main] start rendering...");
-    renderer.render(final_scene, 8).unwrap_or_else(|err| {
+    renderer.render(final_scene, n_threads).unwrap_or_else(|err| {
         panic!("[Main] renderer error {}", err);
     });
     println!("[Main] end rendering...");
