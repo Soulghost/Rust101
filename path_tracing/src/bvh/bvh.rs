@@ -28,7 +28,7 @@ impl BVH {
         if self.root.is_none() {
             return Intersection::new();
         }
-        return BVH::intersect_internal(self.root.as_ref(), ray);
+        return BVH::intersect_internal(self.root.as_deref(), ray);
     }
 
     pub fn sample(&self) -> (Intersection, f64) {
@@ -127,7 +127,7 @@ impl BVH {
         root
     }
 
-    fn intersect_internal(root: Option<&Box<BVHNode>>, ray: &Ray) -> Intersection {
+    fn intersect_internal(root: Option<&BVHNode>, ray: &Ray) -> Intersection {
         if root.is_none() {
             return Intersection::new();
         }
@@ -143,8 +143,8 @@ impl BVH {
             return obj.intersect(ray);
         }
 
-        let left = BVH::intersect_internal(node.left.as_ref(), ray);
-        let right = BVH::intersect_internal(node.right.as_ref(), ray);
+        let left = BVH::intersect_internal(node.left.as_deref(), ray);
+        let right = BVH::intersect_internal(node.right.as_deref(), ray);
         if left.distance < right.distance {
             left
         } else {
@@ -152,7 +152,7 @@ impl BVH {
         }
     }
 
-    fn get_sample(node: &Box<BVHNode>, p: f64) -> (Intersection, f64) {
+    fn get_sample(node: &BVHNode, p: f64) -> (Intersection, f64) {
         if node.left.is_none() || node.right.is_none() {
             assert!(node.object.is_some());
             let (inter, mut pdf) = node.object.as_ref().unwrap().sample();

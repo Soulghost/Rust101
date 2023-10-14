@@ -18,14 +18,13 @@ pub trait Material : Send + Sync {
             r * f64::sin(phi),
             z
         );
-        let c;
-        if f64::abs(normal.x) > f64::abs(normal.y) {
+        let c = if f64::abs(normal.x) > f64::abs(normal.y) {
             let inv_len = 1.0 / f64::sqrt(normal.x * normal.x + normal.z * normal.z);
-            c = Vector3f::new(normal.z * inv_len, 0.0, -normal.x * inv_len);
+            Vector3f::new(normal.z * inv_len, 0.0, -normal.x * inv_len)
         } else {
             let inv_len = 1.0 / f64::sqrt(normal.y * normal.y + normal.z * normal.z);
-            c = Vector3f::new(0.0, normal.z * inv_len, -normal.y * inv_len);
-        }
+            Vector3f::new(0.0, normal.z * inv_len, -normal.y * inv_len)
+        };
         let b = c.cross(normal);
         b * local_dir.x + c * local_dir.y + normal * local_dir.z
     }

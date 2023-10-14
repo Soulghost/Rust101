@@ -5,7 +5,7 @@ use math::vector::Vector3f;
 use mesh::model::Model;
 use std::sync::Arc;
 
-use crate::{renderer::{framebuffer::FrameBuffer, renderer::Renderer}, scene::Scene};
+use crate::{renderer::{framebuffer::FrameBuffer, rendering::Renderer}, scene::Scene};
 
 pub mod bvh;
 pub mod domain;
@@ -19,7 +19,7 @@ pub mod util;
 fn main() {
     let width = 500;
     let height = 500;
-    let spp = 16;
+    let spp = 128;
     let n_threads = 12;
     let mut scene = Scene::new(
         width,
