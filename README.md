@@ -7,4 +7,4 @@ This is my Rust playground, where I will be rewriting many interesting projects 
 
 Cornell box rendered using ray tracing, implemented in Rust, rewritten from Games 101 Assignment 7.
 
-![Result](https://raw.githubusercontent.com/Soulghost/Rust101/master/static/path_tracing.png)
+![Result](https://raw.githubusercontent.com/Soulghost/Rust101/master/static/path_tracing_f1.png)
