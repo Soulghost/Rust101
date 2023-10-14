@@ -3,12 +3,36 @@ use std::sync::Arc;
 
 use crate::{math::{vector::Vector3f, Math}, mesh::{model::Model, object::Object}, bvh::bvh::BVH, domain::domain::{Ray, Intersection}};
 
+#[derive(PartialEq)]
+pub enum EstimatorStrategy {
+    RussianRoulette(f64),
+    MaximumBounces(usize),
+}
+
+impl EstimatorStrategy {
+    fn determine(&self, depth: usize) -> bool {
+        match self {
+            EstimatorStrategy::RussianRoulette(probability) => {
+                Math::sample_uniform_distribution(0.0, 1.0) < *probability
+            },
+            EstimatorStrategy::MaximumBounces(max_depth) => depth < *max_depth,
+        }
+    }
+
+    fn compensation(&self) -> f64 {
+        match self {
+            EstimatorStrategy::RussianRoulette(probability) => 1_f64 / *probability,
+            EstimatorStrategy::MaximumBounces(_) => 1_f64,
+        }
+    }
+}
+
 pub struct Scene {
     pub width: u32,
     pub height: u32,
     pub fov: f64,
     pub camera_background_color: Vector3f,
-    pub russian_roulette: f64,
+    pub estimator_strategy: EstimatorStrategy,
     pub sample_per_pixel: u32,
     models: Vec<Arc<Model>>,
     bvh: Option<BVH>
@@ -19,14 +43,14 @@ impl Scene {
                height: u32,
                fov: f64,
                camera_background_color: Vector3f,
-               russian_roulette: f64,
+               estimator_strategy: EstimatorStrategy,
                sample_per_pixel: u32) -> Scene {
         Scene { 
             width, 
             height, 
             fov, 
             camera_background_color, 
-            russian_roulette,
+            estimator_strategy,
             sample_per_pixel,
             models: vec![],
             bvh: None
@@ -56,10 +80,10 @@ impl Scene {
             return Ok((self.camera_background_color.clone(), false));
         }
         let re_dir = -&ray.direction;
-        return Ok((self.shade(&inter, &re_dir), true));
+        return Ok((self.shade(&inter, &re_dir, 0), true));
     }
 
-    fn shade(&self, hit: &Intersection, wo: &Vector3f) -> Vector3f {
+    fn shade(&self, hit: &Intersection, wo: &Vector3f, depth: usize) -> Vector3f {
         if let Some(material) = &hit.material {
             if material.has_emission() {
                 return material.get_emission();
@@ -94,17 +118,17 @@ impl Scene {
 
         // indirectional lighting
         let mut l_indir = Vector3f::zero();
-        if Math::sample_uniform_distribution(0.0, 1.0) < self.russian_roulette {
+        if self.estimator_strategy.determine(depth) {
             let sample_dir = hit_mat.sample(&-wo, &hit.normal).normalize();
             let indirect_inter = self.bvh.as_ref().unwrap().intersect(&Ray::new(&hit.coords, &sample_dir, 0.0));
             if indirect_inter.hit && !indirect_inter.material.as_ref().unwrap().has_emission() {
                 let indirect_pdf = hit_mat.pdf(&-wo, &sample_dir, &hit.normal);
                 let f_r = hit_mat.eval(&sample_dir, &wo, &hit.normal);
-                l_indir = &self.shade(&indirect_inter, &-&sample_dir)
+                l_indir = (&self.shade(&indirect_inter, &-&sample_dir, depth + 1)
                             * &f_r
                             * sample_dir.dot(&hit.normal)
-                            / indirect_pdf
-                            / self.russian_roulette;
+                            / indirect_pdf)
+                            * self.estimator_strategy.compensation();
             }
         }
         return l_dir + l_indir;
