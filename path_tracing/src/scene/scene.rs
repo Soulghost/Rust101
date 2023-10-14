@@ -105,7 +105,7 @@ impl Scene {
             &Ray::new(&hit.coords, &ws, 0.0)
         );
         let occluder_dis = shadow_check_inter.distance * shadow_check_inter.distance;
-        if occluder_dis - hit_to_light_dis > -f64::EPSILON {
+        if occluder_dis - hit_to_light_dis > -1e-3 {
             // not in shadow
             let f_r = hit_mat.eval(&ws, &wo, &hit.normal);
             l_dir = &inter_light.emit // L_i
