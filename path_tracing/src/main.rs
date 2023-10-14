@@ -4,7 +4,7 @@ use std::sync::Arc;
 use material::material::LitMaterial;
 use math::vector::Vector3f;
 use mesh::model::Model;
-use scene::scene::Scene;
+use scene::Scene;
 
 use crate::renderer::{renderer::Renderer, framebuffer::FrameBuffer};
 
@@ -26,7 +26,7 @@ fn main() {
                                       height, 
                                  40.0, 
              Vector3f::new(0.235294, 0.67451, 0.843137), 
-                    0.8,
+                    scene::EstimatorStrategy::RussianRoulette(0.8),
                     spp);
 
     let white_mat = Arc::new(
