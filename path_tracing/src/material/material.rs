@@ -27,14 +27,14 @@ pub trait Material : Send + Sync {
             c = Vector3f::new(0.0, normal.z * inv_len, -normal.y * inv_len);
         }
         let b = c.cross(normal);
-        return b * local_dir.x + c * local_dir.y + normal * local_dir.z;
+        b * local_dir.x + c * local_dir.y + normal * local_dir.z
     }
 
     fn pdf(&self, _wi: &Vector3f, wo: &Vector3f, normal: &Vector3f) -> f64 {
         if wo.dot(normal) > 0.0 {
-            return 0.5 / PI;
+            0.5 / PI
         } else {
-            return 0.0
+            0.0
         }
     }
 }
@@ -55,23 +55,23 @@ impl LitMaterial {
 
 impl Material for LitMaterial {
     fn get_albedo(&self) -> Vector3f {
-        return self.albedo.clone();
+        self.albedo.clone()
     }
 
     fn has_emission(&self) -> bool {
-        return self.emission.length() > EPSILON;
+        self.emission.length() > EPSILON
     }
 
     fn get_emission(&self) -> Vector3f {
-        return self.emission.clone();
+        self.emission.clone()
     }
 
     fn eval(&self, _ws: &Vector3f, wo: &Vector3f, normal: &Vector3f) -> Vector3f {
         let cosalpha = normal.dot(wo);
         if cosalpha > 0.0 {
-            return &self.albedo / PI;
+            &self.albedo / PI
         } else {
-            return Vector3f::zero();
+            Vector3f::zero()
         }
     }
 }

@@ -26,26 +26,22 @@ impl Bounds3 {
         }
     }
 
-    pub fn clone(&self) -> Bounds3 {
-        Bounds3 { p_min: self.p_min.clone(), p_max: self.p_max.clone() }
-    }
-
     pub fn union(&mut self, b: &Bounds3) {
         self.p_min = Vector3f::min(&self.p_min, &b.p_min);
         self.p_max = Vector3f::max(&self.p_max, &b.p_max);
     }
 
     pub fn union_point(&mut self, p: &Vector3f) {
-        self.p_min = Vector3f::min(&self.p_min, &p);
-        self.p_max = Vector3f::max(&self.p_max, &p);
+        self.p_min = Vector3f::min(&self.p_min, p);
+        self.p_max = Vector3f::max(&self.p_max, p);
     }
 
     pub fn center(&self) -> Vector3f {
-        return &self.p_min * 0.5 + &self.p_max * 0.5;
+        &self.p_min * 0.5 + &self.p_max * 0.5
     }
 
     pub fn diagonal(&self) -> Vector3f {
-        return &self.p_max - &self.p_min;
+        &self.p_max - &self.p_min
     }
 
     pub fn max_extent_axis(&self) -> Axis {
@@ -55,7 +51,7 @@ impl Bounds3 {
         } else if d.y > d.z {
             return Axis::Y;
         }
-        return Axis::Z;
+        Axis::Z
     }
 
     pub fn union2(a: &Bounds3, b: &Bounds3) -> Bounds3 {
@@ -71,7 +67,7 @@ impl Bounds3 {
             1.0 / (ray.direction.y + EPSILON),
             1.0 / (ray.direction.z + EPSILON)
         );
-        let is_dir_neg = vec![
+        let is_dir_neg = [
             ray.direction.x >= 0.0,
             ray.direction.y >= 0.0,
             ray.direction.z >= 0.0
@@ -93,13 +89,19 @@ impl Bounds3 {
 
         let t_enter = f64::max(t_enter3.x, f64::max(t_enter3.y, t_enter3.z));
         let t_exit = f64::min(t_exit3.x, f64::min(t_exit3.y, t_exit3.z));
-        return t_exit >= t_enter && t_exit >= 0.0;
+        t_exit >= t_enter && t_exit >= 0.0
     }
 
 }
 
+impl Clone for Bounds3 {
+    fn clone(&self) -> Self {
+        Bounds3 { p_min: self.p_min.clone(), p_max: self.p_max.clone() }
+    }
+}
+
 impl Display for Bounds3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        return write!(f, "(min={}, max={})", self.p_min, self.p_max);
+        write!(f, "(min={}, max={})", self.p_min, self.p_max)
     }
 }

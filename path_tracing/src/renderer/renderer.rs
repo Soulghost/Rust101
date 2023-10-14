@@ -43,7 +43,7 @@ impl Renderer {
         );
 
         let work_items: Vec<_> = (0..scene.height)
-            .flat_map(|y| (0..scene.width).map(move |x| ((x, y))))
+            .flat_map(|y| (0..scene.width).map(move |x| (x, y)))
             .collect();
 
         let pool = rayon::ThreadPoolBuilder::new()
@@ -94,5 +94,11 @@ impl Renderer {
             });
         });
         Ok(())
+    }
+}
+
+impl Default for Renderer {
+    fn default() -> Self {
+        Self::new()
     }
 }

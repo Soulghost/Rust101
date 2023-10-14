@@ -60,7 +60,7 @@ impl RenderTexture {
                     self.encode_color_component(colors.y),
                     self.encode_color_component(colors.z)
                 ];
-                file.write(&buf)?;
+                file.write_all(&buf)?;
             }   
         }
         Ok(())
@@ -69,6 +69,6 @@ impl RenderTexture {
     fn encode_color_component(&self, c: f64) -> u8 {
         let val = f64::clamp(c, 0.0, 1.0);
         let result = 255.0 * f64::powf(val, 0.6);
-        return result as u8;
+        result as u8
     }
 }

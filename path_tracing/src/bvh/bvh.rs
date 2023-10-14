@@ -21,7 +21,7 @@ impl BVH {
 
     pub fn build(&mut self) {
         let tmp = self.primitives.clone();
-        self.root = Some(self.build_recursively(tmp))
+        self.root = Some(Self::build_recursively(tmp))
     }
 
     pub fn intersect(&self, ray: &Ray) -> Intersection {
@@ -34,12 +34,12 @@ impl BVH {
     pub fn sample(&self) -> (Intersection, f64) {
         let root_node = self.root.as_ref().unwrap();
         let p = f64::sqrt(Math::sample_uniform_distribution(0.0, 1.0)) * root_node.area;
-        let (inter, mut pdf) = self.get_sample(root_node, p);
+        let (inter, mut pdf) = Self::get_sample(root_node, p);
         pdf /= root_node.area;
-        return (inter, pdf);
+        (inter, pdf)
     }
 
-    fn build_recursively(&self, mut primitives: Vec<Arc<dyn Object>>) -> Box<BVHNode> {
+    fn build_recursively(mut primitives: Vec<Arc<dyn Object>>) -> Box<BVHNode> {
         let mut root = BVHNode::new();
         let mut bounds = Bounds3::zero();
         for object in primitives.iter() {
@@ -56,10 +56,10 @@ impl BVH {
             root.area = obj.get_area();
         } else if n_objs == 2 {
             let left = vec![Arc::clone(&primitives[0])];
-            root.left = Some(self.build_recursively(left));
+            root.left = Some(Self::build_recursively(left));
 
             let right = vec![Arc::clone(&primitives[1])];
-            root.right = Some(self.build_recursively(right));
+            root.right = Some(Self::build_recursively(right));
 
             root.bounds = Bounds3::union2(
                 &root.left.as_ref().unwrap().bounds,
@@ -82,7 +82,7 @@ impl BVH {
                         } else if o1 == o2 {
                             return Ordering::Equal;
                         }
-                        return Ordering::Greater;
+                        Ordering::Greater
                     })
                 }
                 Axis::Y => {
@@ -94,7 +94,7 @@ impl BVH {
                         } else if o1 == o2 {
                             return Ordering::Equal;
                         }
-                        return Ordering::Greater;
+                        Ordering::Greater
                     })
                 }
                 Axis::Z => {
@@ -106,7 +106,7 @@ impl BVH {
                         } else if o1 == o2 {
                             return Ordering::Equal;
                         }
-                        return Ordering::Greater;
+                        Ordering::Greater
                     })
                 }
                 Axis::Nil => {
@@ -117,14 +117,14 @@ impl BVH {
             let left = primitives[0..middle_index].to_vec();
             let right = primitives[middle_index..].to_vec();
             assert!(left.len() + right.len() == primitives.len());
-            root.left = Some(self.build_recursively(left));
-            root.right = Some(self.build_recursively(right));
+            root.left = Some(Self::build_recursively(left));
+            root.right = Some(Self::build_recursively(right));
             root.bounds = Bounds3::union2(&root.left.as_ref().unwrap().bounds, 
                                           &root.right.as_ref().unwrap().bounds);
             root.area = root.left.as_ref().unwrap().area +
                         root.right.as_ref().unwrap().area;
         }
-        return root;
+        root
     }
 
     fn intersect_internal(root: Option<&Box<BVHNode>>, ray: &Ray) -> Intersection {
@@ -152,7 +152,7 @@ impl BVH {
         }
     }
 
-    fn get_sample(&self, node: &Box<BVHNode>, p: f64) -> (Intersection, f64) {
+    fn get_sample(node: &Box<BVHNode>, p: f64) -> (Intersection, f64) {
         if node.left.is_none() || node.right.is_none() {
             assert!(node.object.is_some());
             let (inter, mut pdf) = node.object.as_ref().unwrap().sample();
@@ -163,9 +163,9 @@ impl BVH {
         let left_node = node.left.as_ref().unwrap();
         let right_node = node.right.as_ref().unwrap();
         if p < left_node.area {
-            return self.get_sample(left_node, p)
+            Self::get_sample(left_node, p)
         } else {
-            return self.get_sample(right_node, p - left_node.area);
+            Self::get_sample(right_node, p - left_node.area)
         }
     }
 }

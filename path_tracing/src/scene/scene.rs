@@ -80,7 +80,7 @@ impl Scene {
             return Ok((self.camera_background_color.clone(), false));
         }
         let re_dir = -&ray.direction;
-        return Ok((self.shade(&inter, &re_dir, 0), true));
+        Ok((self.shade(&inter, &re_dir, 0), true))
     }
 
     fn shade(&self, hit: &Intersection, wo: &Vector3f, depth: usize) -> Vector3f {
@@ -107,7 +107,7 @@ impl Scene {
         let occluder_dis = shadow_check_inter.distance * shadow_check_inter.distance;
         if occluder_dis - hit_to_light_dis > -1e-3 {
             // not in shadow
-            let f_r = hit_mat.eval(&ws, &wo, &hit.normal);
+            let f_r = hit_mat.eval(&ws, wo, &hit.normal);
             l_dir = &inter_light.emit // L_i
                     * &f_r 
                     * cosine_theta
@@ -123,7 +123,7 @@ impl Scene {
             let indirect_inter = self.bvh.as_ref().unwrap().intersect(&Ray::new(&hit.coords, &sample_dir, 0.0));
             if indirect_inter.hit && !indirect_inter.material.as_ref().unwrap().has_emission() {
                 let indirect_pdf = hit_mat.pdf(&-wo, &sample_dir, &hit.normal);
-                let f_r = hit_mat.eval(&sample_dir, &wo, &hit.normal);
+                let f_r = hit_mat.eval(&sample_dir, wo, &hit.normal);
                 l_indir = (&self.shade(&indirect_inter, &-&sample_dir, depth + 1)
                             * &f_r
                             * sample_dir.dot(&hit.normal)
@@ -131,7 +131,7 @@ impl Scene {
                             * self.estimator_strategy.compensation();
             }
         }
-        return l_dir + l_indir;
+        l_dir + l_indir
     }
 
     fn sample_light(&self) -> (Intersection, f64) {

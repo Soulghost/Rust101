@@ -31,7 +31,7 @@ impl Ray {
     }
 
     pub fn eval(&self, t: f64) -> Vector3f {
-        return self.origin.clone() + self.direction.clone() * t;
+        self.origin.clone() + self.direction.clone() * t
     }
 }
 
@@ -58,5 +58,11 @@ impl Intersection {
             obj: None,
             material: None
         }
+    }
+}
+
+impl Default for Intersection {
+    fn default() -> Self {
+        Self::new()
     }
 }

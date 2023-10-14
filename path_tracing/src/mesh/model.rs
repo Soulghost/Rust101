@@ -27,12 +27,12 @@ impl Model {
             path: String::from(path)
         };
         model.load(path);
-        return model;
+        model
     }
 
     fn load(&mut self, path: &str) {
         let obj = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS);
-        let (models, _) = obj.expect(&format!("Failed to load OBJ file {}", path));
+        let (models, _) = obj.unwrap_or_else(|_| panic!("Failed to load OBJ file {}", path));
         if models.len() != 1 {
             panic!("Invalid OBJ format: only single mesh models are supported");
         }
@@ -90,18 +90,18 @@ impl Object for Model {
     }
 
     fn get_area(&self) -> f64 {
-        return self.area
+        self.area
     }
 
     fn get_bounds(&self) -> Bounds3 {
-        return self.bounds.clone();
+        self.bounds.clone()
     }
 
     fn intersect(self: Arc<Self>, ray: &crate::domain::domain::Ray) -> crate::domain::domain::Intersection {
         if let Some(bvh) = self.bvh.as_ref() {
             return bvh.intersect(ray);
         }
-        return Intersection::new();
+        Intersection::new()
     }
 
     fn sample(&self) -> (Intersection, f64) {
@@ -111,6 +111,6 @@ impl Object for Model {
 
         let (mut inter, area) = self.bvh.as_ref().unwrap().sample();
         inter.emit = self.material.get_emission();
-        return (inter, area);
+        (inter, area)
     }
 }

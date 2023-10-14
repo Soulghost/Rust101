@@ -12,6 +12,6 @@ impl FrameBuffer {
     }
 
     pub fn get_render_target(&mut self) -> &mut RenderTexture {
-        return &mut self.render_target
+        &mut self.render_target
     }
 }

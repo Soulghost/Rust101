@@ -6,8 +6,6 @@ use super::object::Object;
 lazy_static::lazy_static! {
     static ref TRIANGLE_TABLE: Mutex<HashMap<usize, Arc<Triangle>>> = Mutex::new(HashMap::new());
 }
-
-#[derive(Clone)]
 pub struct Triangle {
     pub name: String,
     pub v0: Vector3f,
@@ -22,11 +20,11 @@ pub struct Triangle {
 }
 
 impl Triangle {
-    pub fn new(name: &String, v0: &Vector3f, v1: &Vector3f, v2: &Vector3f, material: Arc<dyn Material>) -> Arc<Triangle> {
+    pub fn new(name: &str, v0: &Vector3f, v1: &Vector3f, v2: &Vector3f, material: Arc<dyn Material>) -> Arc<Triangle> {
         let e1 = v1 - v0;
         let e2 = v2 - v0; 
         let s = Arc::new(Triangle { 
-            name: name.clone(),
+            name: String::from(name),
             v0: v0.clone(),
             v1: v1.clone(),
             v2: v2.clone(),
@@ -41,37 +39,22 @@ impl Triangle {
         table.insert(Arc::as_ptr(&s) as usize, Arc::clone(&s));
         s   
     }
-
-    pub fn clone(&self) -> Triangle {
-        Triangle { 
-            name: self.name.clone(),
-            v0: self.v0.clone(), 
-            v1: self.v1.clone(),
-            v2: self.v2.clone(), 
-            e1: self.e1.clone(),
-            e2: self.e2.clone(), 
-            normal: self.normal.clone(), 
-            area: self.area, 
-            material: Arc::clone(&self.material),
-            // weak_self: Weak::clone(&self.weak_self)
-        }
-    }
 }
 
 impl Object for Triangle {
     // for debug
     fn get_name(&self) -> String {
-        return self.name.clone()
+        self.name.clone()
     }
 
     fn get_bounds(&self) -> Bounds3 {
         let mut b = Bounds3::from_points(&self.v0, &self.v1);
         b.union_point(&self.v2);
-        return b;
+        b
     }
 
     fn get_area(&self) -> f64 {
-        return self.area;
+        self.area
     }
 
     fn intersect(self: Arc<Self>, ray: &Ray) -> Intersection {
@@ -89,7 +72,7 @@ impl Object for Triangle {
         let det_inv = 1.0 / det;
         let tvec = &ray.origin - &self.v0;
         let u = tvec.dot(&pvec) * det_inv;
-        if u < 0.0 || u > 1.0 {
+        if !(0.0..=1.0).contains(&u) {
             return Intersection::new();
         }
         
@@ -125,5 +108,22 @@ impl Object for Triangle {
                                + &self.v2 * (x * y);
         inter.normal = self.normal.clone();
         (inter, 1.0 / self.area)
+    }
+}
+
+impl Clone for Triangle {
+    fn clone(&self) -> Self {
+        Triangle { 
+            name: self.name.clone(),
+            v0: self.v0.clone(), 
+            v1: self.v1.clone(),
+            v2: self.v2.clone(), 
+            e1: self.e1.clone(),
+            e2: self.e2.clone(), 
+            normal: self.normal.clone(), 
+            area: self.area, 
+            material: Arc::clone(&self.material),
+            // weak_self: Weak::clone(&self.weak_self)
+        }
     }
 }
