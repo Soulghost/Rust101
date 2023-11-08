@@ -138,8 +138,7 @@ impl<'a> Display for HitResult<'a> {
         } else {
             write!(
                 f,
-                "HitResult {{ 
-                    distance: {}, shape: None }}",
+                "HitResult {{ distance: {}, shape: None }}",
                 self.distance
             )
         }
