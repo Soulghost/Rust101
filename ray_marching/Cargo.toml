@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 elsa = "1.9.0"
+indicatif = "0.17.7"
+minifb = "0.25.0"

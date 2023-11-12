@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops};
+use std::{f64::consts::PI, fmt::Display, ops};
 
 pub struct Vector3f {
     pub x: f64,
@@ -225,5 +225,16 @@ impl Clone for Vector3f {
 impl Display for Vector3f {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {}, {})", self.x, self.y, self.z)
+    }
+}
+
+pub struct Math;
+impl Math {
+    pub fn radian(degree: f64) -> f64 {
+        degree * PI / 180.0
+    }
+
+    pub fn degree(radian: f64) -> f64 {
+        radian / PI * 180.0
     }
 }
