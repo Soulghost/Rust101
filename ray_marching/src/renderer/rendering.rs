@@ -4,6 +4,7 @@ use crate::renderer::texture::RenderTextureSetMode;
 use crate::sdf::Scene;
 use crate::{math::Vector3f, renderer::framebuffer::FrameBuffer};
 use indicatif::{ProgressBar, ProgressStyle};
+use nalgebra::{Rotation3, Vector3};
 
 pub struct Renderer {
     pub fbo: Option<FrameBuffer>,
@@ -17,6 +18,7 @@ impl Renderer {
     pub fn render<'a>(
         &mut self,
         eye: Vector3f,
+        rotation_degrees: Vector3f,
         scene: &'a Scene<'a>,
         silent: bool,
     ) -> Result<(), &'static str> {
@@ -48,9 +50,7 @@ impl Renderer {
             .unwrap()
             .progress_chars("##-");
             m = Some(ProgressBar::new(work_items.len() as _).with_style(m_style));
-            m.as_ref()
-                .unwrap()
-                .println(format!("[Renderer] ray marching..."));
+            m.as_ref().unwrap().println("[Renderer] ray marching...");
         } else {
             m = None;
         }
@@ -60,7 +60,25 @@ impl Renderer {
 
             let x = (2.0 * (i as f64 + 0.5) / scene.width as f64 - 1.0) * aspect * scale;
             let y = (1.0 - 2.0 * (j as f64 + 0.5) / scene.height as f64) * scale;
-            let dir = Vector3f::new(x, y, 1.0).normalize();
+            let mut dir = Vector3f::new(x, y, 1.0).normalize();
+            // try to rotate the ray
+            {
+                let dir_a = Vector3::new(dir.x, dir.y, dir.z);
+                let rotation = Rotation3::from_euler_angles(
+                    rotation_degrees.x.to_radians(),
+                    rotation_degrees.z.to_radians(),
+                    rotation_degrees.y.to_radians(),
+                );
+                let dir_a: nalgebra::Matrix<
+                    f64,
+                    nalgebra::Const<3>,
+                    nalgebra::Const<1>,
+                    nalgebra::ArrayStorage<f64, 3, 1>,
+                > = (rotation * dir_a).normalize();
+                dir.x = dir_a.x;
+                dir.y = dir_a.y;
+                dir.z = dir_a.z;
+            }
             let ray = Ray::new(&eye_pos, &dir, 0.0);
             let mut color = Vector3f::zero();
             for _ in 0..scene.sample_per_pixel {

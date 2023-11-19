@@ -38,19 +38,25 @@ impl RenderTexture {
         &mut self.buffer
     }
 
-    pub fn get_buffer(&self) -> Vec<u32> {
+    pub fn get_buffer(&self, need_gamma: bool) -> Vec<u32> {
         let buffer: Vec<u32> = self
             .buffer
             .iter()
             .flatten()
             .map(|v| {
+                let mut v = *v;
+                if need_gamma {
+                    v.x = gamma(v.x);
+                    v.y = gamma(v.y);
+                    v.z = gamma(v.z);
+                }
                 let r = (v.x * 255.0) as u32;
                 let g = (v.y * 255.0) as u32;
                 let b = (v.z * 255.0) as u32;
                 (r << 16) | (g << 8) | b
             })
             .collect();
-        return buffer;
+        buffer
     }
 
     pub fn get_width(&self) -> u32 {
@@ -84,4 +90,8 @@ impl RenderTexture {
         let result = 255.0 * f64::powf(val, 0.6);
         result as u8
     }
+}
+
+fn gamma(c: f64) -> f64 {
+    f64::powf(c, 1.0 / 2.2)
 }

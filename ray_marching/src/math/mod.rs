@@ -1,5 +1,6 @@
 use std::{f64::consts::PI, fmt::Display, ops};
 
+#[derive(Copy)]
 pub struct Vector3f {
     pub x: f64,
     pub y: f64,
@@ -35,13 +36,21 @@ impl Vector3f {
         }
     }
 
+    pub fn max_scalar(p1: &Vector3f, val: f64) -> Vector3f {
+        Vector3f {
+            x: f64::max(p1.x, val),
+            y: f64::max(p1.y, val),
+            z: f64::max(p1.z, val),
+        }
+    }
+
     pub fn normalize(&self) -> Vector3f {
         let mag2 = self.x * self.x + self.y * self.y + self.z * self.z;
         if mag2 > f64::EPSILON {
             let inv_mag = 1.0 / f64::sqrt(mag2);
             self * inv_mag
         } else {
-            self.clone()
+            *self
         }
     }
 
@@ -188,6 +197,18 @@ impl<'a> ops::Sub for &'a Vector3f {
     }
 }
 
+impl ops::Sub<f64> for Vector3f {
+    type Output = Vector3f;
+
+    fn sub(self, rhs: f64) -> Self::Output {
+        Vector3f {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
+        }
+    }
+}
+
 impl<'a> ops::Mul for &'a Vector3f {
     type Output = Vector3f;
 
@@ -236,5 +257,20 @@ impl Math {
 
     pub fn degree(radian: f64) -> f64 {
         radian / PI * 180.0
+    }
+}
+
+pub struct Vector2f {
+    pub x: f64,
+    pub y: f64,
+}
+
+impl Vector2f {
+    pub fn new(x: f64, y: f64) -> Vector2f {
+        Vector2f { x, y }
+    }
+
+    pub fn length(&self) -> f64 {
+        f64::sqrt(self.x * self.x + self.y * self.y)
     }
 }

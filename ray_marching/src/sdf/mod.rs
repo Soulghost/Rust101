@@ -1,12 +1,18 @@
+use crate::material::PBRMaterial;
+use crate::math::Vector2f;
 use crate::{domain::Ray, math::Vector3f};
 use core::fmt;
 use elsa::FrozenVec;
 use std::any::Any;
+use std::cell::RefCell;
 use std::fmt::Display;
+use std::rc::Rc;
 
 pub enum ShapeType {
     Sphere,
     Cube,
+    CubeFrame,
+    Torus,
 }
 
 impl Display for ShapeType {
@@ -14,6 +20,8 @@ impl Display for ShapeType {
         match self {
             ShapeType::Sphere => write!(f, "Sphere"),
             ShapeType::Cube => write!(f, "Cube"),
+            ShapeType::CubeFrame => write!(f, "CubeFrame"),
+            ShapeType::Torus => write!(f, "Torus"),
         }
     }
 }
@@ -45,8 +53,8 @@ impl Display for Sphere {
 }
 
 pub struct Cube {
-    most_front_up_right: Vector3f,
-    center: Vector3f,
+    pub most_front_up_right: Vector3f,
+    pub center: Vector3f,
 }
 
 impl Shape for Cube {
@@ -79,6 +87,94 @@ impl Display for Cube {
     }
 }
 
+pub struct CubeFrame {
+    pub center: Vector3f,
+    pub bounds: Vector3f,
+    pub thinkness: f64,
+}
+
+impl Shape for CubeFrame {
+    fn shape_type(&self) -> ShapeType {
+        ShapeType::CubeFrame
+    }
+
+    // float sdBoxFrame( vec3 p, vec3 b, float e )
+    // {
+    //        p = abs(p  )-b;
+    //   vec3 q = abs(p+e)-e;
+
+    //   return min(
+    //    min(length(max(vec3(p.x,q.y,q.z),0.0))+min(max(p.x,max(q.y,q.z)),0.0),
+    //        length(max(vec3(q.x,p.y,q.z),0.0))+min(max(q.x,max(p.y,q.z)),0.0)
+    //    ),
+    //    length(max(vec3(q.x,q.y,p.z),0.0))+min(max(q.x,max(q.y,p.z)),0.0));
+    // }
+
+    fn sdf(&self, p: &Vector3f) -> f64 {
+        let mut p = p - &self.center;
+        p.x = f64::abs(p.x) - self.bounds.x;
+        p.y = f64::abs(p.y) - self.bounds.y;
+        p.z = f64::abs(p.z) - self.bounds.z;
+
+        let mut q = p;
+        q.x = f64::abs(q.x + self.thinkness) - self.thinkness;
+        q.y = f64::abs(q.y + self.thinkness) - self.thinkness;
+        q.z = f64::abs(q.z + self.thinkness) - self.thinkness;
+
+        min(
+            min(
+                Vector3f::max_scalar(&Vector3f::new(p.x, q.y, q.z), 0.0).length()
+                    + min(max(p.x, max(q.y, q.z)), 0.0),
+                Vector3f::max_scalar(&Vector3f::new(q.x, p.y, q.z), 0.0).length()
+                    + min(max(q.x, max(p.y, q.z)), 0.0),
+            ),
+            Vector3f::max_scalar(&Vector3f::new(q.x, q.y, p.z), 0.0).length()
+                + min(max(q.x, max(q.y, q.z)), 0.0),
+        )
+    }
+}
+
+impl Display for CubeFrame {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Cube(center={}, bounds={}, thinkness={})",
+            self.center, self.bounds, self.thinkness
+        )
+    }
+}
+
+pub struct Torus {
+    pub center: Vector3f,
+    pub outer_radius: f64,
+    pub inner_radius: f64,
+}
+
+impl Shape for Torus {
+    fn shape_type(&self) -> ShapeType {
+        ShapeType::Torus
+    }
+
+    fn sdf(&self, p: &Vector3f) -> f64 {
+        Vector2f::new(
+            Vector2f::new(p.x - self.center.x, p.z - self.center.z).length() - self.outer_radius,
+            p.y - self.center.y,
+        )
+        .length()
+            - self.inner_radius
+    }
+}
+
+impl Display for Torus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Torus(center={}, r0={}, r1={})",
+            self.center, self.outer_radius, self.inner_radius
+        )
+    }
+}
+
 pub enum ShapeOpType {
     Nop,
     Union,
@@ -101,6 +197,7 @@ impl Display for ShapeOpType {
 pub struct ShapeOp<'a> {
     pub shape: Box<dyn Shape>,
     pub op: ShapeOpType,
+    pub material: Rc<PBRMaterial>,
     pub next: Option<&'a ShapeOp<'a>>,
 }
 
@@ -155,6 +252,7 @@ impl<'a> Default for HitResult<'a> {
 pub struct Scene<'a> {
     pub nodes: FrozenVec<Box<ShapeOp<'a>>>,
     pub root_nodes: FrozenVec<&'a ShapeOp<'a>>,
+    pub ground_node: RefCell<Option<&'a ShapeOp<'a>>>,
     pub background_color: Vector3f,
     pub width: u32,
     pub height: u32,
@@ -173,7 +271,8 @@ impl<'a> Scene<'a> {
         Scene {
             nodes: FrozenVec::new(),
             root_nodes: FrozenVec::new(),
-            background_color: background_color,
+            ground_node: RefCell::new(None),
+            background_color,
             width,
             height,
             fov,
@@ -181,12 +280,17 @@ impl<'a> Scene<'a> {
         }
     }
 
-    pub fn add_leaf_node(&'a self, shape: Box<dyn Shape>) -> &'a ShapeOp<'a> {
+    pub fn add_leaf_node(
+        &'a self,
+        shape: Box<dyn Shape>,
+        material: Rc<PBRMaterial>,
+    ) -> &'a ShapeOp<'a> {
         let idx = self.nodes.len();
         self.nodes.push(Box::new(ShapeOp {
             shape,
             op: ShapeOpType::Nop,
             next: None,
+            material,
         }));
         &self.nodes[idx]
     }
@@ -194,16 +298,34 @@ impl<'a> Scene<'a> {
     pub fn add_node(
         &'a self,
         shape: Box<dyn Shape>,
+        material: Rc<PBRMaterial>,
         op: ShapeOpType,
         next: Option<&'a ShapeOp<'a>>,
     ) -> &'a ShapeOp<'a> {
         let idx = self.nodes.len();
-        self.nodes.push(Box::new(ShapeOp { shape, op, next }));
+        self.nodes.push(Box::new(ShapeOp {
+            shape,
+            material,
+            op,
+            next,
+        }));
         &self.nodes[idx]
     }
 
     pub fn add_root_node(&'a self, node: &'a ShapeOp<'a>) {
         self.root_nodes.push(node);
+    }
+
+    pub fn set_ground(&'a self, node: &'a ShapeOp<'a>) {
+        *self.ground_node.borrow_mut() = Some(node);
+    }
+
+    pub fn is_ground(&'a self, node: &'a ShapeOp<'a>) -> bool {
+        if let Some(lhs) = *self.ground_node.borrow() {
+            std::ptr::eq(lhs, node)
+        } else {
+            false
+        }
     }
 
     pub fn sdf(&'a self, p: &Vector3f) -> HitResult<'a> {
@@ -219,47 +341,100 @@ impl<'a> Scene<'a> {
     }
 
     pub fn cast_ray(&'a self, origin_ray: &Ray) -> Vector3f {
-        let n_reflection = 1;
-        let mut color = Vector3f::zero();
-        let mut ray = Ray::new(&origin_ray.origin, &origin_ray.direction, 0.0);
-        for _ in 0..n_reflection {
-            let hit = self.ray_march(&ray);
-            if hit.shape_op.is_some() {
-                let p = ray.eval(hit.distance);
-                let normal = self.normal(&hit, &p);
-
-                // FIXME: naive blinn-phong
-                let ambient = Vector3f::new(0.2, 0.2, 0.2);
-                let light_color = Vector3f::new(0.8, 0.0, 0.0);
-                let light_dir = Vector3f::new(1.0, 1.0, 1.0).normalize();
-                let view = &ray.origin - &p;
-                let light = -&light_dir;
-                let half: Vector3f = ((view + light) / 2.0).normalize();
-                let factor = f64::clamp(half.dot(&normal), 0.0, 1.0);
-                color += light_color * factor + ambient;
-
-                // FIXME: reflection direction
-                ray.origin = p + normal.clone() * 0.05;
-                ray.direction = -&normal;
-            } else {
-                // not hit anything, use background color
-                // FIXME: operator overload
-                color += self.background_color.clone();
-            }
-        }
+        let mut color = self._cast_ray(origin_ray, 0, None);
 
         // HDR
-        // color.x = color.x / (color.x + 1.0);
-        // color.y = color.y / (color.y + 1.0);
-        // color.z = color.z / (color.z + 1.0);
+        color.x = color.x / (color.x + 1.0);
+        color.y = color.y / (color.y + 1.0);
+        color.z = color.z / (color.z + 1.0);
 
-        // Gamma
-        return color;
+        color
     }
 
-    pub fn ray_march(&'a self, ray: &Ray) -> HitResult<'a> {
+    fn _cast_ray(&'a self, ray: &Ray, depth: u32, source_op: Option<&'a ShapeOp<'a>>) -> Vector3f {
+        if depth > 1 {
+            return Vector3f::zero();
+        }
+
+        // let mut ray = Ray::new(&origin_ray.origin, &origin_ray.direction, 0.0);
+        // let mut view_material: Option<Rc<PBRMaterial>> = None;
+        let hit = self.ray_march(ray, 1e5);
+        let ambient_intensity = 0.15;
+        let light_intensity = 2.0;
+        if let Some(op) = hit.shape_op {
+            if let Some(orig_op) = source_op {
+                if std::ptr::eq(op, orig_op) {
+                    return Vector3f::zero();
+                }
+            }
+            let p = ray.eval(hit.distance);
+            let normal = self.normal(&hit, &p);
+            let material = Rc::clone(&op.material);
+
+            // FIXME: naive blinn-phong
+            let ambient = Vector3f::new(1.0, 1.0, 1.0) * ambient_intensity;
+            let light_color = Vector3f::new(1.0, 1.0, 1.0) * light_intensity;
+            let light_dir = Vector3f::new(0.32, -0.77, 0.56);
+            let view = (ray.origin - p).normalize();
+            let light = -&light_dir;
+            let half: Vector3f = ((view + light) / 2.0).normalize();
+            // return Vector3f::new(light.dot(&normal), light.dot(&normal), light.dot(&normal));
+
+            let albedo = if !self.is_ground(op) {
+                material.kd
+            } else {
+                // ground color
+                if ((p.x * 0.5 + self.width as f64) as u32 + (p.z * 0.5 + 1000.0) as u32) & 1 != 0 {
+                    Vector3f::new(1.0, 1.0, 1.0) * 0.8
+                } else {
+                    Vector3f::new(1.0, 1.0, 1.0) * 0.3
+                }
+            };
+
+            // shadow
+            let shadow_check_dis = 1e4;
+            let shadow_orig = p + normal * 1e-3;
+            let shadow_dir = light;
+            let shadow_ray = Ray::new(&shadow_orig, &shadow_dir, 0.0);
+            let shadow_hit = self.ray_march(&shadow_ray, shadow_check_dis);
+            let shadow_attenuation = if shadow_hit.shape_op.is_none() {
+                1.0
+            } else {
+                0.0
+            };
+
+            // diffuse
+            let diffuse_factor =
+                f64::max(light.dot(&normal), 0.0) * material.roughness * shadow_attenuation;
+            let diffuse = &light_color * &albedo * diffuse_factor;
+
+            // specular
+            let spec_factor = f64::powf(f64::max(half.dot(&normal), 0.0), 16.0)
+                * material.metalness
+                * shadow_attenuation;
+            let specular = light_color * spec_factor;
+
+            // FIXME: reflection direction
+            // view + reflection = 2 * normal;
+            let reflection_dir = normal * 2 * normal.dot(&view) - view;
+            let reflection_orig = if normal.dot(&reflection_dir) >= 0.0 {
+                p + normal * 1e-3
+            } else {
+                p - normal * 1e-3
+            };
+            let reflection_ray = Ray::new(&reflection_orig, &reflection_dir, 0.0);
+            let reflection_factor = reflection_dir.dot(&normal) * material.metalness;
+            let reflection =
+                self._cast_ray(&reflection_ray, depth + 1, hit.shape_op) * reflection_factor;
+            return ambient + diffuse + specular + material.emission + reflection;
+        } else if depth > 0 {
+            return Vector3f::zero();
+        }
+        self.background_color
+    }
+
+    pub fn ray_march(&'a self, ray: &Ray, max_dist: f64) -> HitResult<'a> {
         let max_steps = 300;
-        let max_dist = 1e5;
         let mut dist = 0.0;
         let march_accuracy = 1e-3;
         for _ in 0..max_steps {
@@ -331,4 +506,12 @@ impl<'a> ShapeOp<'a> {
             ShapeOpType::Nop => panic!("invalid operation"),
         }
     }
+}
+
+fn min(a: f64, b: f64) -> f64 {
+    f64::min(a, b)
+}
+
+fn max(a: f64, b: f64) -> f64 {
+    f64::max(a, b)
 }
