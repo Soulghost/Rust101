@@ -1,6 +1,6 @@
 use std::{f64::consts::PI, fmt::Display, ops};
 
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct Vector3f {
     pub x: f64,
     pub y: f64,
@@ -229,16 +229,6 @@ impl<'a> ops::Neg for &'a Vector3f {
             x: -self.x,
             y: -self.y,
             z: -self.z,
-        }
-    }
-}
-
-impl Clone for Vector3f {
-    fn clone(&self) -> Self {
-        Vector3f {
-            x: self.x,
-            y: self.y,
-            z: self.z,
         }
     }
 }

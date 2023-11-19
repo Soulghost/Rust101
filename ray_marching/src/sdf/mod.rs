@@ -68,8 +68,8 @@ impl Shape for Cube {
         d_abs.y = f64::abs(d_abs.y);
         d_abs.z = f64::abs(d_abs.z);
 
-        let d = &d_abs - &self.most_front_up_right;
-        let mut d_clamped = d.clone();
+        let d = d_abs - self.most_front_up_right;
+        let mut d_clamped = d;
         d_clamped.x = f64::max(d.x, 0.0);
         d_clamped.y = f64::max(d.y, 0.0);
         d_clamped.z = f64::max(d.z, 0.0);

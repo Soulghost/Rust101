@@ -5,23 +5,21 @@ pub struct Ray {
     pub direction: Vector3f,
     pub t: f64,
     pub t_min: f64,
-    pub t_max: f64
+    pub t_max: f64,
 }
 
 impl Ray {
-    pub fn new(origin: &Vector3f,
-               direction: &Vector3f,
-               t: f64) -> Ray {
+    pub fn new(origin: &Vector3f, direction: &Vector3f, t: f64) -> Ray {
         Ray {
             t_min: 0.0,
             t_max: f64::MAX,
-            origin: origin.clone(),
-            direction: direction.clone(),
-            t
+            origin: *origin,
+            direction: *direction,
+            t,
         }
     }
 
     pub fn eval(&self, t: f64) -> Vector3f {
-        self.origin.clone() + self.direction.clone() * t
+        self.origin + self.direction * t
     }
 }

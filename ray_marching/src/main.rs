@@ -1,5 +1,5 @@
 #![feature(trait_upcasting)]
-use std::{any::Any, rc::Rc, time::Instant};
+use std::{rc::Rc, time::Instant};
 
 use material::PBRMaterial;
 use math::Vector3f;
@@ -8,7 +8,7 @@ use sdf::{Scene, Sphere};
 
 use crate::{
     renderer::{framebuffer::FrameBuffer, rendering::Renderer},
-    sdf::{Cube, CubeFrame, Torus},
+    sdf::{Cube, Torus},
 };
 
 pub mod domain;
@@ -103,9 +103,9 @@ fn realtime_rendering() {
 
     // rotation
     let eye = Vector3f::new(-0.3, 4.0, -9.5);
-    let mut rotation = Vector3f::new(32.0, 0.0, 0.0);
+    let rotation = Vector3f::new(32.0, 0.0, 0.0);
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        let delta_time = timer.elapsed().as_secs_f64() - t0;
+        let _delta_time = timer.elapsed().as_secs_f64() - t0;
         t0 = timer.elapsed().as_secs_f64();
         // rotation.x -= delta_time;
         // println!("current d {}", rotation.x);
