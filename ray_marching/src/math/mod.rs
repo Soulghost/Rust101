@@ -1,4 +1,9 @@
-use std::{f64::consts::PI, fmt::Display, ops};
+use std::{
+    f64::consts::PI,
+    fmt::Display,
+    ops,
+    ops::{Add, Mul},
+};
 
 #[derive(Copy, Clone)]
 pub struct Vector3f {
@@ -10,6 +15,10 @@ pub struct Vector3f {
 impl Vector3f {
     pub fn new(x: f64, y: f64, z: f64) -> Vector3f {
         Vector3f { x, y, z }
+    }
+
+    pub fn scalar(v: f64) -> Vector3f {
+        Vector3f { x: v, y: v, z: v }
     }
 
     pub fn zero() -> Vector3f {
@@ -263,4 +272,23 @@ impl Vector2f {
     pub fn length(&self) -> f64 {
         f64::sqrt(self.x * self.x + self.y * self.y)
     }
+
+    pub fn dot(&self, rhs: &Vector2f) -> f64 {
+        self.x * rhs.x + self.y * rhs.y
+    }
+}
+
+pub fn lerp<T>(x: T, y: T, a: f64) -> T
+where
+    T: Mul<f64, Output = T> + Add<Output = T> + Copy,
+{
+    x * (1.0 - a) + y * a
+}
+
+pub fn min(a: f64, b: f64) -> f64 {
+    f64::min(a, b)
+}
+
+pub fn max(a: f64, b: f64) -> f64 {
+    f64::max(a, b)
 }
