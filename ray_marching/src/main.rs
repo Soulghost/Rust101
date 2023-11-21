@@ -26,6 +26,9 @@ fn render(show_window: bool) {
             panic!("[Main] cannot create native window {}", e);
         });
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
+    if show_window {
+        window.update();
+    }
 
     // rotation
     let eye = Vector3f::new(-0.3, 4.0, -9.5);
@@ -47,7 +50,7 @@ fn render(show_window: bool) {
     renderer.fbo = Some(fbo);
 
     renderer
-        .render(eye, rotation, &scene, true)
+        .render(eye, rotation, &scene, false)
         .unwrap_or_else(|err| {
             panic!("[Main] renderer error {}", err);
         });
