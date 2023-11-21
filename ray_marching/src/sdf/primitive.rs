@@ -2,6 +2,7 @@ use crate::math::{max, min, Vector2f};
 use crate::{domain::Ray, math::Vector3f};
 use core::fmt;
 use nalgebra::{Rotation3, Vector3};
+use std::f64::consts::TAU;
 use std::fmt::Display;
 
 use super::{Shape, ShapeType};
@@ -206,7 +207,7 @@ impl Shape for Helix {
 
     fn sdf(&self, p: &Vector3f) -> f64 {
         let p = p - &self.center;
-        let n_line = Vector2f::new(self.fr, 6.283185 * self.r1);
+        let n_line = Vector2f::new(self.fr, TAU * self.r1);
         let p_line = Vector2f::new(n_line.y, -n_line.x);
         let repeat = n_line.x * n_line.y;
         let pc = Vector2f::new(p.x, self.r1 * f64::atan2(p.y, p.z));

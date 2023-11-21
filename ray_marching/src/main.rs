@@ -18,9 +18,9 @@ pub mod renderer;
 pub mod sdf;
 
 fn render(show_window: bool) {
-    let dpi = 1;
-    let width = 720 * dpi;
-    let height = 405 * dpi;
+    let dpi = 1.5;
+    let width = (720.0 * dpi) as usize;
+    let height = (405.0 * dpi) as usize;
     let mut window = Window::new("Ray Marching", width, height, WindowOptions::default())
         .unwrap_or_else(|e| {
             panic!("[Main] cannot create native window {}", e);
@@ -139,7 +139,16 @@ fn add_models_to_scene<'a>(scene: &'a Scene<'a>) {
         sdf::ShapeOpType::Subtraction,
         Some(sub_sphere),
     );
-    scene.add_root_node(sphere);
+    let bottom_sphere = scene.add_node(
+        Box::new(Sphere {
+            center: Vector3f::new(0.85, 1.85, -6.6),
+            radius: 0.5,
+        }),
+        Rc::clone(&purper_material),
+        sdf::ShapeOpType::SmoothUnion,
+        Some(sphere),
+    );
+    scene.add_root_node(bottom_sphere);
 
     // Helix
     let helix = scene.add_leaf_node(

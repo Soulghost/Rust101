@@ -42,9 +42,7 @@ pub fn pbr_lighting<'a>(
     let denominator = 4.0 * max(normal.dot(view), 0.0) * max(normal.dot(light), 0.0) + f64::EPSILON;
     let specular = numerator / denominator;
     let diffuse = &albedo * &kd / PI;
-    let direct_lighting =
-        ambient + &(diffuse + specular) * incident_radiance * max(light.dot(normal), 0.0);
-    direct_lighting
+    ambient + &(diffuse + specular) * incident_radiance * max(light.dot(normal), 0.0)
 }
 
 fn normal_distribution_ggx(normal: &Vector3f, half: &Vector3f, roughness: f64) -> f64 {
