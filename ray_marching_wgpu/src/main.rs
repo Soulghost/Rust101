@@ -63,14 +63,23 @@ pub async fn run() {
                     roughness: 0.8,
                     ao: 0.05,
                 });
-                let node = scene.add_leaf_node(
+                let child_sphere = scene.add_leaf_node(
+                    Box::new(Sphere {
+                        center: Vector3f::new(0.3, 0.0, 0.0),
+                        radius: 0.4,
+                    }),
+                    Rc::clone(&purper_material),
+                );
+                let root_sphere = scene.add_node(
                     Box::new(Sphere {
                         center: Vector3f::new(0.0, 0.0, 0.0),
                         radius: 0.5,
                     }),
-                    purper_material,
+                    Rc::clone(&purper_material),
+                    sdf::ShapeOpType::SmoothUnion,
+                    Some(child_sphere),
                 );
-                scene.add_root_node(node);
+                scene.add_root_node(root_sphere);
                 state.update(&scene);
 
                 match state.render() {

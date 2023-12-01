@@ -1,13 +1,10 @@
-use elsa::FrozenVec;
-use std::{iter, rc::Rc};
+use std::iter;
 use wgpu::util::DeviceExt;
 use winit::{event::WindowEvent, window::Window};
 
 use crate::{
-    material::PBRMaterial,
-    math::Vector3f,
     node::camera::{Camera, CameraController, CameraUniform},
-    sdf::{primitive::Sphere, Scene, ShapeOp},
+    sdf::Scene,
 };
 
 #[repr(C)]
@@ -201,10 +198,11 @@ impl State {
             label: Some("camera_bind_group"),
         });
 
-        let scene_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let scene_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Scene Buffer"),
-            contents: bytemuck::cast_slice(&[camera_uniform]),
+            size: 16384,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
         let scene_bind_group_layout =

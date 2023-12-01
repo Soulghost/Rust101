@@ -96,7 +96,8 @@ fn ray_march(ray: Ray, max_dist: f32) -> Hit {
 
 fn sdf(p: vec3<f32>) -> Hit {
     // mock the sphere
-    let sphere = scene.shapes[0];
+    let root_index = scene.root_index;
+    let sphere = scene.shapes[root_index];
     let center = vec3<f32>(sphere.data[0], sphere.data[1], sphere.data[2]);
     let radius = sphere.data[3];
 
