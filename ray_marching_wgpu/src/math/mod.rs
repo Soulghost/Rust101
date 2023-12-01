@@ -29,6 +29,10 @@ impl Vector3f {
         Vector3f { x: v, y: v, z: v }
     }
 
+    pub fn to32(&self) -> (f32, f32, f32) {
+        (self.x as f32, self.y as f32, self.z as f32)
+    }
+
     pub fn zero() -> Vector3f {
         Vector3f {
             x: 0.0,

@@ -1,9 +1,11 @@
 use crate::math::{max, min, Vector2f};
 use crate::{domain::Ray, math::Vector3f};
+use cgmath::num_traits::ToPrimitive;
 use core::fmt;
 use nalgebra::{Rotation3, Vector3};
 use std::f64::consts::TAU;
 use std::fmt::Display;
+use std::mem::transmute;
 
 use super::{Shape, ShapeType};
 
@@ -19,6 +21,17 @@ impl Shape for Sphere {
 
     fn sdf(&self, p: &Vector3f) -> f64 {
         (&self.center - p).length() - self.radius
+    }
+
+    fn to_bytes(&self) -> [u8; 40] {
+        let mut bytes = [0u8; 40];
+        unsafe {
+            let center_bytes: [u8; 12] = transmute(self.center.to32());
+            let radius_bytes = self.radius.to_f32().unwrap().to_le_bytes();
+            bytes[0..12].copy_from_slice(&center_bytes);
+            bytes[12..16].copy_from_slice(&radius_bytes);
+        }
+        bytes
     }
 }
 

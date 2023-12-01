@@ -64,7 +64,6 @@ impl CameraUniform {
             camera.screen_size.y,
         ];
         self.fov_reversed = [camera.fovy, 0.0, 0.0, 0.0];
-        println!("direction {:?}", self.fov_reversed);
         // self.view_proj = (OPENGL_TO_WGPU_MATRIX * camera.build_view_projection_matrix()).into();
     }
 }

@@ -2,6 +2,7 @@ use crate::material::pbr::pbr_lighting;
 use crate::material::PBRMaterial;
 use crate::math::lerp;
 use crate::{domain::Ray, math::Vector3f};
+use cgmath::num_traits::{ToBytes, ToPrimitive};
 use core::fmt;
 use elsa::FrozenVec;
 use std::any::Any;
@@ -9,6 +10,7 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::rc::Rc;
 
+pub mod ext;
 pub mod primitive;
 
 pub enum ShapeType {
@@ -39,6 +41,9 @@ pub trait Shape: Send + Sync + Display + Any {
     fn rotate_ray(&self, ray: &Ray) -> Ray {
         *ray
     }
+    fn to_bytes(&self) -> [u8; 40] {
+        [0; 40]
+    }
 }
 
 pub enum ShapeOpType {
@@ -62,10 +67,26 @@ impl Display for ShapeOpType {
 }
 
 pub struct ShapeOp<'a> {
+    pub index: u32,
     pub shape: Box<dyn Shape>,
     pub op: ShapeOpType,
     pub material: Rc<PBRMaterial>,
     pub next: Option<&'a ShapeOp<'a>>,
+}
+
+impl<'a> ShapeOp<'a> {
+    pub fn to_bytes(&self) -> [u8; 48] {
+        let type_index: u32 = 0;
+        let material_index: u32 = 1;
+        let mut bytes = [0u8; 48];
+        let type_bytes = type_index.to_le_bytes();
+        let material_bytes = material_index.to_le_bytes();
+        let data_bytes = self.shape.to_bytes();
+        bytes[0..4].copy_from_slice(&type_bytes);
+        bytes[4..8].copy_from_slice(&material_bytes);
+        bytes[8..48].copy_from_slice(&data_bytes);
+        bytes
+    }
 }
 
 impl<'a> Display for ShapeOp<'a> {
@@ -154,6 +175,7 @@ impl<'a> Scene<'a> {
     ) -> &'a ShapeOp<'a> {
         let idx = self.nodes.len();
         self.nodes.push(Box::new(ShapeOp {
+            index: idx as u32,
             shape,
             op: ShapeOpType::Nop,
             next: None,
@@ -171,6 +193,7 @@ impl<'a> Scene<'a> {
     ) -> &'a ShapeOp<'a> {
         let idx = self.nodes.len();
         self.nodes.push(Box::new(ShapeOp {
+            index: idx as u32,
             shape,
             material,
             op,
@@ -205,6 +228,31 @@ impl<'a> Scene<'a> {
             }
         }
         result
+    }
+
+    pub fn to_bytes(&'a self) -> Box<[u8]> {
+        let mut buffer: Vec<u8> = Vec::new();
+        if !self.root_nodes.is_empty() {
+            // add root index
+            let root_index = self.root_nodes[0].index;
+            let root_index_bytes = root_index.to_le_bytes();
+
+            let root_count = self.root_nodes.len();
+            let root_count_bytes = root_count.to_u32().unwrap().to_le_bytes();
+            buffer.extend_from_slice(&root_index_bytes);
+            buffer.extend_from_slice(&root_count_bytes);
+
+            let pad0: [u8; 8] = [0; 8];
+            buffer.extend_from_slice(&pad0);
+            for node in self.nodes.iter() {
+                let node_bytes = node.to_bytes();
+                buffer.extend_from_slice(&node_bytes);
+            }
+        } else {
+            let empty: [u8; 48] = [0; 48];
+            buffer.extend_from_slice(&empty);
+        }
+        buffer.into_boxed_slice()
     }
 
     pub fn cast_ray(&'a self, origin_ray: &Ray) -> Vector3f {

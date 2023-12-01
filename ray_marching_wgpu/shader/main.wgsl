@@ -9,8 +9,26 @@ struct CameraUniform {
     fov_reserved: vec4<f32>
 };
 
-@group(0) @binding(0)
-var<uniform> camera: CameraUniform;
+struct Shape {
+    type_index: i32,
+    material_index: i32,
+    data: array<f32, 10>
+};
+
+struct SphereShape /*: Shape*/ {
+    type_index: i32, // 0
+    material_index: i32, // 4
+    center: vec3<f32>, // 16
+    radius: f32, // 32
+    pad0: array<f32, 3>
+};
+
+struct SceneUniform {
+    root_index: i32,
+    shape_count: i32,
+    pad0: array<f32, 2>,
+    shapes: array<Shape>
+};
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -21,6 +39,12 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
 }
+
+@group(0) @binding(0)
+var<uniform> camera: CameraUniform;
+
+@group(1) @binding(0)
+var<storage> scene: SceneUniform;
 
 @vertex
 fn vs_main(
@@ -34,14 +58,11 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    // return vec4(f32(scene.shapes[0].material_index), 0.0, 0.0, 1.0);
+
     var ray = generate_ray(in.tex_coords);
     let hit = ray_march(ray, 1e5);
     return lerp4(vec4(1.0, 0.0, 0.0, 1.0), vec4(1.0, 1.0, 1.0, 1.0), hit.valid);
-    // return vec4(camera.near_far_ssize.z / 2000.0, 0.0, 0.0, 1.0);
-    // return vec4(abs(ray.direction.x), abs(ray.direction.y), abs(ray.direction.z), 1.0);
-    // return vec4(abs(camera.eye_ray.direction.z), 0.0, 0.0, 1.0);
-    // return vec4(abs(camera.eye_ray.direction.z), 0.0, 0.0, 1.0);
-    // return vec4(in.tex_coords.x, in.tex_coords.y, 0.0, 1.0);
 }
 
 struct Hit {
@@ -74,9 +95,14 @@ fn ray_march(ray: Ray, max_dist: f32) -> Hit {
 }
 
 fn sdf(p: vec3<f32>) -> Hit {
+    // mock the sphere
+    let sphere = scene.shapes[0];
+    let center = vec3<f32>(sphere.data[0], sphere.data[1], sphere.data[2]);
+    let radius = sphere.data[3];
+
     var hit = Hit();  
     hit.valid = 1.0;
-    hit.distance = sphere_sdf(p, vec3<f32>(0.0, 0.0, 0.0), 0.5);
+    hit.distance = sphere_sdf(p, center, radius);
     hit.index = 0;
     return hit;
 }
