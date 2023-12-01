@@ -1,4 +1,8 @@
+use cgmath::InnerSpace;
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
+
+use crate::domain::Ray;
+use crate::math::{ext, Vector3f};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -9,6 +13,7 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 );
 
 pub struct Camera {
+    pub screen_size: cgmath::Point2<f32>,
     pub eye: cgmath::Point3<f32>,
     pub target: cgmath::Point3<f32>,
     pub up: cgmath::Vector3<f32>,
@@ -30,19 +35,37 @@ impl Camera {
 #[repr(C)]
 #[derive(Default, Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
-    pub view_proj: [[f32; 4]; 4],
+    // pub view_proj: [[f32; 4]; 4],
+    pub eye_ray: [[f32; 4]; 2],
+    pub near_far_ssize: [f32; 4],
+    pub fov_reversed: [f32; 4],
 }
 
 impl CameraUniform {
     pub fn new() -> Self {
-        use cgmath::SquareMatrix;
+        // use cgmath::SquareMatrix;
         Self {
-            view_proj: cgmath::Matrix4::identity().into(),
+            // view_proj: cgmath::Matrix4::identity().into(),
+            eye_ray: Ray::zero().into(),
+            near_far_ssize: Default::default(),
+            fov_reversed: Default::default(),
         }
     }
 
-    pub fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = (OPENGL_TO_WGPU_MATRIX * camera.build_view_projection_matrix()).into();
+    pub fn update(&mut self, camera: &Camera) {
+        let origin: Vector3f = camera.eye.into();
+        let target: Vector3f = camera.target.into();
+        let direction = (target - origin).normalize();
+        self.eye_ray = Ray::create(origin, direction).into();
+        self.near_far_ssize = [
+            camera.znear,
+            camera.zfar,
+            camera.screen_size.x,
+            camera.screen_size.y,
+        ];
+        self.fov_reversed = [camera.fovy, 0.0, 0.0, 0.0];
+        println!("direction {:?}", self.fov_reversed);
+        // self.view_proj = (OPENGL_TO_WGPU_MATRIX * camera.build_view_projection_matrix()).into();
     }
 }
 

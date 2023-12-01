@@ -5,11 +5,19 @@ use std::{
     ops::{Add, Mul},
 };
 
-#[derive(Copy, Clone)]
+pub mod ext;
+
+#[derive(Default, Copy, Clone)]
 pub struct Vector3f {
     pub x: f64,
     pub y: f64,
     pub z: f64,
+}
+
+impl From<Vector3f> for [f32; 4] {
+    fn from(val: Vector3f) -> Self {
+        [val.x as f32, val.y as f32, val.z as f32, 0.0]
+    }
 }
 
 impl Vector3f {

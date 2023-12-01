@@ -1,5 +1,6 @@
 use pipeline::State;
 use winit::{
+    dpi::LogicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
@@ -17,6 +18,7 @@ pub async fn run() {
     env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
+    window.set_inner_size(LogicalSize::new(500, 500));
     let mut state = State::new(window).await;
     event_loop.run(move |event, _, control_flow| {
         match event {
