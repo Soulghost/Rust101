@@ -92,6 +92,7 @@ struct Hit {
     index: i32
 }
 
+// Shading
 fn cast_ray(_ray: Ray) -> vec4<f32> {
     var ray = _ray;
     var result = vec3<f32>(0.0, 0.0, 0.0);
@@ -140,30 +141,104 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     return vec4(tone_mapping(result), 1.0);
 }
 
-fn calculate_shadow_attenuation(p: vec3<f32>, normal: vec3<f32>, light: vec3<f32>) -> f32 {
-    let normal_bias = 1e-1;
-    var origin = vec3<f32>();
-    if dot(normal, light) >= 0.0 {
-        origin = p + normal * normal_bias;
-    } else {
-        origin = p - normal * normal_bias;
-    }
+fn generate_ray(frag_coords: vec2<f32>) -> Ray {
+    let near = camera.near_far_ssize.x;
+    let fov = camera.fov_reserved.x;
+    let size = camera.near_far_ssize.zw;
+    let aspect = size.x / size.y;
+
+    let ndc = vec2<f32>(-(frag_coords.x - 0.5), -(frag_coords.y - 0.5)) * 2.0;
+    
+    // Field of view and aspect ratio
+    var tan_half_fov = tan(radians(fov * 0.5));
+    let aspect_ratio = size.x / size.y;
+
+    // Compute ray direction in camera space
+    let ray_dir_cam_space = vec3<f32>(tan_half_fov * aspect_ratio * ndc.x, tan_half_fov * ndc.y, 1.0);
+
+    // Build a camera-to-world transformation matrix
+    let w = normalize(camera.eye_ray.direction);
+    let u = normalize(cross(w, vec3<f32>(0.0, 1.0, 0.0)));
+    let v = cross(u, w);
+    let cam_to_world = mat3x3<f32>(u, v, w);
+
+    // Transform ray direction to world space
+    let ray_dir_world_space = normalize(cam_to_world * ray_dir_cam_space);
 
     var ray = Ray();
-    ray.origin = origin;
-    ray.direction = light;
-    let hit = ray_march(ray, 1e4);
-    return 1.0 - hit.valid;
+    ray.origin = camera.eye_ray.origin;
+    ray.direction = ray_dir_world_space;
+    return ray;
 }
 
-fn tone_mapping(_color: vec3<f32>) -> vec3<f32> {
-    var color = _color;
-    color.x = color.x / (color.x + 1.0);
-    color.y = color.y / (color.y + 1.0);
-    color.z = color.z / (color.z + 1.0);
-    return color;
+// Ray Marching
+fn ray_march(ray: Ray, max_dist: f32) -> Hit {
+    var result = Hit();
+    result.valid = 0.0;
+
+    var dist = 0.0;
+    let march_accuracy = 1e-3;
+    for (var i = 0; i < 300; i++) {
+        let p = ray.origin + ray.direction * dist;
+        let hit = sdf(p);
+        if hit.distance < march_accuracy {
+            result.valid = 1.0;
+            result.distance = dist;
+            result.index = hit.index;
+        }
+        dist += hit.distance;
+        if dist >= max_dist {
+            break;
+        }
+    }
+
+    return result;
 }
 
+fn sdf(p: vec3<f32>) -> Hit {
+    // FIXME: mock the sphere
+    let root_index = scene.root_index;
+    let shape = scene.shapes[root_index];
+
+    var hit = Hit();  
+    hit.distance = shape_sdf(shape, p);
+    hit.index = root_index;
+    return hit;
+}
+
+fn shape_sdf(shape: Shape, p: vec3<f32>) -> f32 {
+    let sphere = shape;
+    let center = vec3<f32>(sphere.data[0], sphere.data[1], sphere.data[2]);
+    let radius = sphere.data[3];
+    return sphere_sdf(p, center, radius);
+}
+
+fn sphere_sdf(p: vec3<f32>, center: vec3<f32>, radius: f32) -> f32 {
+    return length(center - p) - radius;
+}
+
+fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
+    let shape = scene.shapes[hit.index];
+    
+    let eps_grad = 1e-3;
+    let p_x_p = p + vec3<f32>(eps_grad, 0.0, 0.0);
+    let p_x_m = p - vec3<f32>(eps_grad, 0.0, 0.0);
+    let p_y_p = p + vec3<f32>(0.0, eps_grad, 0.0);
+    let p_y_m = p - vec3<f32>(0.0, eps_grad, 0.0);
+    let p_z_p = p + vec3<f32>(0.0, 0.0, eps_grad);
+    let p_z_m = p - vec3<f32>(0.0, 0.0, eps_grad);
+
+    let sdf_x_p = shape_sdf(shape, p_x_p);
+    let sdf_x_m = shape_sdf(shape, p_x_m);
+    let sdf_y_p = shape_sdf(shape, p_y_p);
+    let sdf_y_m = shape_sdf(shape, p_y_m);
+    let sdf_z_p = shape_sdf(shape, p_z_p);
+    let sdf_z_m = shape_sdf(shape, p_z_m);
+    let normal = vec3<f32>(sdf_x_p - sdf_x_m, sdf_y_p - sdf_y_m, sdf_z_p - sdf_z_m) / (2.0 * eps_grad);
+    return normal;
+}
+
+// PBR
 fn pbr_lighting(material: PBRMaterial, view: vec3<f32>, normal: vec3<f32>, light: vec3<f32>, incident_radiance: vec3<f32>) -> vec3<f32> {
     let albedo = material.albedo;
     let ambient = vec3<f32>(0.03) * albedo * (1.0 - material.ao);
@@ -213,102 +288,32 @@ fn fresnel_schlick(cos_theta: f32, f0: vec3<f32>) -> vec3<f32> {
     return f0 + f1;
 }
 
-fn ray_march(ray: Ray, max_dist: f32) -> Hit {
-    var result = Hit();
-    result.valid = 0.0;
-
-    var dist = 0.0;
-    let march_accuracy = 1e-3;
-    for (var i = 0; i < 300; i++) {
-        let p = ray.origin + ray.direction * dist;
-        let hit = sdf(p);
-        if hit.distance < march_accuracy {
-            result.valid = 1.0;
-            result.distance = dist;
-            result.index = hit.index;
-        }
-        dist += hit.distance;
-        if dist >= max_dist {
-            break;
-        }
+fn calculate_shadow_attenuation(p: vec3<f32>, normal: vec3<f32>, light: vec3<f32>) -> f32 {
+    let normal_bias = 1e-1;
+    var origin = vec3<f32>();
+    if dot(normal, light) >= 0.0 {
+        origin = p + normal * normal_bias;
+    } else {
+        origin = p - normal * normal_bias;
     }
 
-    return result;
-}
-
-fn sdf(p: vec3<f32>) -> Hit {
-    // FIXME: mock the sphere
-    let root_index = scene.root_index;
-    let shape = scene.shapes[root_index];
-
-    var hit = Hit();  
-    hit.distance = shape_sdf(shape, p);
-    hit.index = root_index;
-    return hit;
-}
-
-fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
-    let shape = scene.shapes[hit.index];
-    
-    let eps_grad = 1e-3;
-    let p_x_p = p + vec3<f32>(eps_grad, 0.0, 0.0);
-    let p_x_m = p - vec3<f32>(eps_grad, 0.0, 0.0);
-    let p_y_p = p + vec3<f32>(0.0, eps_grad, 0.0);
-    let p_y_m = p - vec3<f32>(0.0, eps_grad, 0.0);
-    let p_z_p = p + vec3<f32>(0.0, 0.0, eps_grad);
-    let p_z_m = p - vec3<f32>(0.0, 0.0, eps_grad);
-
-    let sdf_x_p = shape_sdf(shape, p_x_p);
-    let sdf_x_m = shape_sdf(shape, p_x_m);
-    let sdf_y_p = shape_sdf(shape, p_y_p);
-    let sdf_y_m = shape_sdf(shape, p_y_m);
-    let sdf_z_p = shape_sdf(shape, p_z_p);
-    let sdf_z_m = shape_sdf(shape, p_z_m);
-    let normal = vec3<f32>(sdf_x_p - sdf_x_m, sdf_y_p - sdf_y_m, sdf_z_p - sdf_z_m) / (2.0 * eps_grad);
-    return normal;
-}
-
-fn shape_sdf(shape: Shape, p: vec3<f32>) -> f32 {
-    let sphere = shape;
-    let center = vec3<f32>(sphere.data[0], sphere.data[1], sphere.data[2]);
-    let radius = sphere.data[3];
-    return sphere_sdf(p, center, radius);
-}
-
-fn sphere_sdf(p: vec3<f32>, center: vec3<f32>, radius: f32) -> f32 {
-    return length(center - p) - radius;
-}
-
-fn generate_ray(frag_coords: vec2<f32>) -> Ray {
-    let near = camera.near_far_ssize.x;
-    let fov = camera.fov_reserved.x;
-    let size = camera.near_far_ssize.zw;
-    let aspect = size.x / size.y;
-
-    let ndc = vec2<f32>(-(frag_coords.x - 0.5), -(frag_coords.y - 0.5)) * 2.0;
-    
-    // Field of view and aspect ratio
-    var tan_half_fov = tan(radians(fov * 0.5));
-    let aspect_ratio = size.x / size.y;
-
-    // Compute ray direction in camera space
-    let ray_dir_cam_space = vec3<f32>(tan_half_fov * aspect_ratio * ndc.x, tan_half_fov * ndc.y, 1.0);
-
-    // Build a camera-to-world transformation matrix
-    let w = normalize(camera.eye_ray.direction);
-    let u = normalize(cross(w, vec3<f32>(0.0, 1.0, 0.0)));
-    let v = cross(u, w);
-    let cam_to_world = mat3x3<f32>(u, v, w);
-
-    // Transform ray direction to world space
-    let ray_dir_world_space = normalize(cam_to_world * ray_dir_cam_space);
-
     var ray = Ray();
-    ray.origin = camera.eye_ray.origin;
-    ray.direction = ray_dir_world_space;
-    return ray;
+    ray.origin = origin;
+    ray.direction = light;
+    let hit = ray_march(ray, 1e4);
+    return 1.0 - hit.valid;
 }
 
+// HDR
+fn tone_mapping(_color: vec3<f32>) -> vec3<f32> {
+    var color = _color;
+    color.x = color.x / (color.x + 1.0);
+    color.y = color.y / (color.y + 1.0);
+    color.z = color.z / (color.z + 1.0);
+    return color;
+}
+
+// Math
 fn lerp(a: f32, b: f32, s: f32) -> f32 {
     return a + (b - a) * s;
 }
