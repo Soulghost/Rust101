@@ -83,6 +83,7 @@ pub struct State {
     pub camera_buffer: wgpu::Buffer,
     pub camera_bind_group: wgpu::BindGroup,
     pub scene_buffer: wgpu::Buffer,
+    pub material_buffer: wgpu::Buffer,
     pub scene_bind_group: wgpu::BindGroup,
     pub window: Window,
 }
@@ -205,27 +206,52 @@ impl State {
             mapped_at_creation: false,
         });
 
+        let material_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Material Buffer"),
+            size: 16384,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         let scene_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     },
-                    count: None,
-                }],
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
                 label: Some("scene_bind_group_layout"),
             });
 
         let scene_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &scene_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: scene_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: scene_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: material_buffer.as_entire_binding(),
+                },
+            ],
             label: Some("scene_bind_group"),
         });
 
@@ -313,6 +339,7 @@ impl State {
             camera_bind_group,
             camera_uniform,
             scene_buffer,
+            material_buffer,
             scene_bind_group,
             window,
         }
@@ -353,11 +380,21 @@ impl State {
         // update scene uniform
         let scene_bytes = scene.to_bytes();
         println!(
-            "check the bytes , len = {}, data = {:?}",
+            "check scene buffer bytes , len = {}, data = {:?}",
             scene_bytes.len(),
             scene_bytes
         );
         self.queue.write_buffer(&self.scene_buffer, 0, &scene_bytes);
+
+        // update material uniform
+        let material_bytes = scene.get_materials_bytes();
+        println!(
+            "check material buffer bytes , len = {}, data = {:?}",
+            scene_bytes.len(),
+            scene_bytes
+        );
+        self.queue
+            .write_buffer(&self.material_buffer, 0, &material_bytes);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

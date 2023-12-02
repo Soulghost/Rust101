@@ -6,7 +6,9 @@ use cgmath::num_traits::{ToBytes, ToPrimitive};
 use core::fmt;
 use elsa::FrozenVec;
 use std::any::Any;
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
 
@@ -76,8 +78,8 @@ pub struct ShapeOp<'a> {
 
 impl<'a> ShapeOp<'a> {
     pub fn to_bytes(&self) -> [u8; 48] {
-        let type_index: u32 = 0;
-        let material_index: u32 = 1;
+        let type_index: i32 = 0;
+        let material_index: i32 = self.material.get_index();
         let mut bytes = [0u8; 48];
         let type_bytes = type_index.to_le_bytes();
         let material_bytes = material_index.to_le_bytes();
@@ -146,6 +148,10 @@ pub struct Scene<'a> {
     pub height: u32,
     pub fov: f64,
     pub sample_per_pixel: u32,
+
+    // material
+    material2index: RefCell<HashMap<u64, i32>>,
+    materials: RefCell<Vec<Rc<PBRMaterial>>>,
 }
 
 impl<'a> Scene<'a> {
@@ -160,6 +166,8 @@ impl<'a> Scene<'a> {
             nodes: FrozenVec::new(),
             root_nodes: FrozenVec::new(),
             ground_node: RefCell::new(None),
+            material2index: RefCell::new(HashMap::new()),
+            materials: RefCell::new(Vec::new()),
             background_color,
             width,
             height,
@@ -176,11 +184,12 @@ impl<'a> Scene<'a> {
         let idx = self.nodes.len();
         self.nodes.push(Box::new(ShapeOp {
             index: idx as u32,
+            material: Rc::clone(&material),
             shape,
             op: ShapeOpType::Nop,
             next: None,
-            material,
         }));
+        self.add_material(Rc::clone(&material));
         &self.nodes[idx]
     }
 
@@ -194,11 +203,12 @@ impl<'a> Scene<'a> {
         let idx = self.nodes.len();
         self.nodes.push(Box::new(ShapeOp {
             index: idx as u32,
+            material: Rc::clone(&material),
             shape,
-            material,
             op,
             next,
         }));
+        self.add_material(Rc::clone(&material));
         &self.nodes[idx]
     }
 
@@ -253,6 +263,37 @@ impl<'a> Scene<'a> {
             buffer.extend_from_slice(&empty);
         }
         buffer.into_boxed_slice()
+    }
+
+    pub fn get_materials_bytes(&self) -> Box<[u8]> {
+        let mut buffer: Vec<u8> = Vec::new();
+        if !self.root_nodes.is_empty() {
+            let count = self.materials.borrow().len();
+            let count_bytes = count.to_u32().unwrap().to_le_bytes();
+            buffer.extend_from_slice(&count_bytes);
+
+            let pad0: [u8; 12] = [0; 12];
+            buffer.extend_from_slice(&pad0);
+            for material in self.materials.borrow().iter() {
+                let material_bytes = material.to_bytes();
+                buffer.extend_from_slice(&material_bytes);
+            }
+        } else {
+            let empty: [u8; 48] = [0; 48];
+            buffer.extend_from_slice(&empty);
+        }
+        buffer.into_boxed_slice()
+    }
+
+    fn add_material(&'a self, material: Rc<PBRMaterial>) {
+        let ptr = Rc::as_ptr(&material) as u64;
+        if self.material2index.borrow().contains_key(&ptr) {
+            return;
+        }
+        let idx = self.materials.borrow().len() as i32;
+        material.set_index(idx);
+        self.material2index.borrow_mut().insert(ptr, idx);
+        self.materials.borrow_mut().push(Rc::clone(&material));
     }
 
     pub fn cast_ray(&'a self, origin_ray: &Ray) -> Vector3f {
