@@ -23,8 +23,8 @@ impl Shape for Sphere {
         (&self.center - p).length() - self.radius
     }
 
-    fn to_bytes(&self) -> [u8; 40] {
-        let mut bytes = [0u8; 40];
+    fn to_bytes(&self) -> [u8; 32] {
+        let mut bytes = [0u8; 32];
         unsafe {
             let center_bytes: [u8; 12] = transmute(self.center.to32());
             let radius_bytes = self.radius.to_f32().unwrap().to_le_bytes();

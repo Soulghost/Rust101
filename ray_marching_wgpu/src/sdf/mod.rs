@@ -2,11 +2,10 @@ use crate::material::pbr::pbr_lighting;
 use crate::material::PBRMaterial;
 use crate::math::lerp;
 use crate::{domain::Ray, math::Vector3f};
-use cgmath::num_traits::{ToBytes, ToPrimitive};
+use cgmath::num_traits::ToPrimitive;
 use core::fmt;
 use elsa::FrozenVec;
 use std::any::Any;
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -22,6 +21,19 @@ pub enum ShapeType {
     Torus,
     DeathStar,
     Helix,
+}
+
+impl ShapeType {
+    pub fn to_index(&self) -> i32 {
+        match self {
+            ShapeType::Sphere => 0,
+            ShapeType::Cube => 1,
+            ShapeType::CubeFrame => 2,
+            ShapeType::Torus => 3,
+            ShapeType::DeathStar => 4,
+            ShapeType::Helix => 5,
+        }
+    }
 }
 
 impl Display for ShapeType {
@@ -43,8 +55,8 @@ pub trait Shape: Send + Sync + Display + Any {
     fn rotate_ray(&self, ray: &Ray) -> Ray {
         *ray
     }
-    fn to_bytes(&self) -> [u8; 40] {
-        [0; 40]
+    fn to_bytes(&self) -> [u8; 32] {
+        [0; 32]
     }
 }
 
@@ -54,6 +66,18 @@ pub enum ShapeOpType {
     Subtraction,
     Intersection,
     SmoothUnion,
+}
+
+impl ShapeOpType {
+    pub fn to_index(&self) -> i32 {
+        match self {
+            ShapeOpType::Nop => 0,
+            ShapeOpType::Union => 1,
+            ShapeOpType::Subtraction => 2,
+            ShapeOpType::Intersection => 3,
+            ShapeOpType::SmoothUnion => 4,
+        }
+    }
 }
 
 impl Display for ShapeOpType {
@@ -69,7 +93,7 @@ impl Display for ShapeOpType {
 }
 
 pub struct ShapeOp<'a> {
-    pub index: u32,
+    pub index: i32,
     pub shape: Box<dyn Shape>,
     pub op: ShapeOpType,
     pub material: Rc<PBRMaterial>,
@@ -78,15 +102,25 @@ pub struct ShapeOp<'a> {
 
 impl<'a> ShapeOp<'a> {
     pub fn to_bytes(&self) -> [u8; 48] {
-        let type_index: i32 = 0;
-        let material_index: i32 = self.material.get_index();
+        let type_index: i32 = self.shape.shape_type().to_index();
+        let material_index = self.material.get_index();
+        let op_index = self.op.to_index();
+        let next_index = if let Some(next) = self.next {
+            next.index
+        } else {
+            -1
+        };
         let mut bytes = [0u8; 48];
         let type_bytes = type_index.to_le_bytes();
         let material_bytes = material_index.to_le_bytes();
+        let op_index_bytes = op_index.to_le_bytes();
+        let next_index_bytes = next_index.to_le_bytes();
         let data_bytes = self.shape.to_bytes();
         bytes[0..4].copy_from_slice(&type_bytes);
         bytes[4..8].copy_from_slice(&material_bytes);
-        bytes[8..48].copy_from_slice(&data_bytes);
+        bytes[8..12].copy_from_slice(&op_index_bytes);
+        bytes[12..16].copy_from_slice(&next_index_bytes);
+        bytes[16..48].copy_from_slice(&data_bytes);
         bytes
     }
 }
@@ -183,7 +217,7 @@ impl<'a> Scene<'a> {
     ) -> &'a ShapeOp<'a> {
         let idx = self.nodes.len();
         self.nodes.push(Box::new(ShapeOp {
-            index: idx as u32,
+            index: idx as i32,
             material: Rc::clone(&material),
             shape,
             op: ShapeOpType::Nop,
@@ -202,7 +236,7 @@ impl<'a> Scene<'a> {
     ) -> &'a ShapeOp<'a> {
         let idx = self.nodes.len();
         self.nodes.push(Box::new(ShapeOp {
-            index: idx as u32,
+            index: idx as i32,
             material: Rc::clone(&material),
             shape,
             op,

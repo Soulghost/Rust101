@@ -379,20 +379,20 @@ impl State {
 
         // update scene uniform
         let scene_bytes = scene.to_bytes();
-        println!(
-            "check scene buffer bytes , len = {}, data = {:?}",
-            scene_bytes.len(),
-            scene_bytes
-        );
+        // println!(
+        //     "check scene buffer bytes , len = {}, data = {:?}",
+        //     scene_bytes.len(),
+        //     scene_bytes
+        // );
         self.queue.write_buffer(&self.scene_buffer, 0, &scene_bytes);
 
         // update material uniform
         let material_bytes = scene.get_materials_bytes();
-        println!(
-            "check material buffer bytes , len = {}, data = {:?}",
-            scene_bytes.len(),
-            scene_bytes
-        );
+        // println!(
+        //     "check material buffer bytes , len = {}, data = {:?}",
+        //     scene_bytes.len(),
+        //     scene_bytes
+        // );
         self.queue
             .write_buffer(&self.material_buffer, 0, &material_bytes);
     }

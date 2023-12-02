@@ -1,5 +1,6 @@
 const PI: f32 = 3.14159265359;
 const EPSILON: f32 = 1.19209290e-07;
+const F32_MAX: f32 = 3.40282347e+38;
 
 struct Ray {
     origin: vec3<f32>,
@@ -15,14 +16,18 @@ struct CameraUniform {
 struct Shape {
     type_index: i32,
     material_index: i32,
-    data: array<f32, 10>
+    op_index: i32,
+    next_index: i32,
+    data: array<f32, 8>
 };
 
 // struct SphereShape /*: Shape*/ {
 //     type_index: i32, // 0
 //     material_index: i32, // 4
-//     center: array<f32, 3>, // 8 - 20
-//     radius: f32, // 20 - 24
+//     op_index: i32, // 8
+//     next_index: i32, // 12
+//     center: array<f32, 3>, // 16 - 28
+//     radius: f32, // 28 - 32
 //     ...
 // };
 
@@ -89,7 +94,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 struct Hit {
     valid: f32,
     distance: f32,
-    index: i32
+    index: i32,
+    material: PBRMaterial
 }
 
 // Shading
@@ -180,7 +186,7 @@ fn ray_march(ray: Ray, max_dist: f32) -> Hit {
     let march_accuracy = 1e-3;
     for (var i = 0; i < 300; i++) {
         let p = ray.origin + ray.direction * dist;
-        let hit = sdf(p);
+        let hit = scene_sdf(p);
         if hit.distance < march_accuracy {
             result.valid = 1.0;
             result.distance = dist;
@@ -195,26 +201,92 @@ fn ray_march(ray: Ray, max_dist: f32) -> Hit {
     return result;
 }
 
-fn sdf(p: vec3<f32>) -> Hit {
+fn scene_sdf(p: vec3<f32>) -> Hit {
     // FIXME: mock the sphere
     let root_index = scene.root_index;
     let shape = scene.shapes[root_index];
 
     var hit = Hit();  
-    hit.distance = shape_sdf(shape, p);
+    hit.distance = shape_chain_sdf(shape, p);
     hit.index = root_index;
     return hit;
 }
 
-fn shape_sdf(shape: Shape, p: vec3<f32>) -> f32 {
-    let sphere = shape;
-    let center = vec3<f32>(sphere.data[0], sphere.data[1], sphere.data[2]);
-    let radius = sphere.data[3];
-    return sphere_sdf(p, center, radius);
+fn shape_chain_sdf(shape: Shape, p: vec3<f32>) -> f32 {
+    var sdf_f = shape_sdf(shape, p);
+    var cur = shape;
+    var next_index = shape.next_index;
+    while next_index != -1 {
+        let next = scene.shapes[next_index];
+        let sdf_i = shape_sdf(next, p);
+        sdf_f = op_sdf(sdf_f, cur.op_index, sdf_i);
+        cur = next;
+        next_index = next.next_index;
+    }
+    return sdf_f;
 }
 
-fn sphere_sdf(p: vec3<f32>, center: vec3<f32>, radius: f32) -> f32 {
+fn shape_sdf(shape: Shape, p: vec3<f32>) -> f32 {
+    // impl ShapeType {
+    //     pub fn to_index(&self) -> i32 {
+    //         match self {
+    //             ShapeType::Sphere => 0,
+    //             ShapeType::Cube => 1,
+    //             ShapeType::CubeFrame => 2,
+    //             ShapeType::Torus => 3,
+    //             ShapeType::DeathStar => 4,
+    //             ShapeType::Helix => 5,
+    //         }
+    //     }
+    // }
+    let type_index = shape.type_index;
+    switch (type_index) {
+        case 0: {
+            return sphere_sdf(shape, p);
+        }
+        default: {
+            return F32_MAX;
+        }
+    }
+}
+
+fn sphere_sdf(sphere: Shape, p: vec3<f32>) -> f32 {
+    let center = vec3<f32>(sphere.data[0], sphere.data[1], sphere.data[2]);
+    let radius = sphere.data[3];
     return length(center - p) - radius;
+}
+
+fn op_sdf(sdf_a: f32, op: i32, sdf_b: f32) -> f32 {
+    // impl ShapeOpType {
+    //     pub fn to_index(&self) -> i32 {
+    //         match self {
+    //             ShapeOpType::Nop => 0,
+    //             ShapeOpType::Union => 1,
+    //             ShapeOpType::Subtraction => 2,
+    //             ShapeOpType::Intersection => 3,
+    //             ShapeOpType::SmoothUnion => 4,
+    //         }
+    //     }
+    // }
+    switch (op) {
+        case 1: {
+            return min(sdf_a, sdf_b);
+        }
+        case 2: {
+            return max(sdf_a, -sdf_b);
+        }
+        case 3: {
+            return max(sdf_a, sdf_b);
+        }
+        case 4: {
+            let k = 1.0;
+            let h = clamp(0.5 + 0.5 * (sdf_b - sdf_a) / k, 0.0, 1.0);
+            return lerp(sdf_b, sdf_a, h) - k * h * (1.0 - h);
+        }
+        default: {
+            return F32_MAX;
+        }
+    }
 }
 
 fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
