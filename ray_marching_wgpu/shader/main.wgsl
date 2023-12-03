@@ -31,10 +31,7 @@ struct Shape {
 //     ...
 // };
 
-struct SceneUniform {
-    root_index: i32,
-    shape_count: i32,
-    pad0: array<f32, 2>,
+struct ShapeUniform {
     shapes: array<Shape>
 };
 
@@ -48,8 +45,6 @@ struct PBRMaterial {
 };
 
 struct PBRMaterialUniform {
-    material_count: i32,
-    pad0: array<f32, 3>,
     materials: array<PBRMaterial>
 };
 
@@ -64,13 +59,13 @@ struct VertexOutput {
 }
 
 @group(0) @binding(0)
-var<uniform> camera: CameraUniform;
+var<uniform> u_camera: CameraUniform;
 
 @group(1) @binding(0)
-var<storage> scene: SceneUniform;
+var<storage, read> u_shape: ShapeUniform;
 
 @group(1) @binding(1)
-var<storage> material: PBRMaterialUniform;
+var<storage, read> u_material: PBRMaterialUniform;
 
 @vertex
 fn vs_main(
@@ -84,8 +79,8 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // return vec4(material.materials[0].albedo, 1.0);
-    // return vec4(f32(scene.shapes[0].material_index), 0.0, 0.0, 1.0);
+    // return vec4(u_material.materials[0].albedo, 1.0);
+    // return vec4(f32(u_shape.shapes[0].material_index), 0.0, 0.0, 1.0);
 
     var ray = generate_ray(in.tex_coords);
     return cast_ray(ray);
@@ -108,7 +103,8 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     let light_intensity = 10.0;
     let light_dir = vec3<f32>(0.32, -0.77, 0.56);
     let light_radiance = vec3<f32>(1.0, 1.0, 1.0) * light_intensity;
-    for (var depth = 0; depth < 1; depth++) {
+    var radiance_atten = 1.0;
+    for (var depth = 0; depth < 2; depth++) {
         // ray marching
         let hit = ray_march(_ray, 1e5);
         if hit.valid < 0.5 {
@@ -122,18 +118,19 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         // shading
         let p = ray.origin + ray.direction * hit.distance;
         let normal = calculate_normal(hit, p);
-        let shape = scene.shapes[hit.index];
-        let material = material.materials[shape.material_index];
+        let shape = u_shape.shapes[hit.index];
+        let material = u_material.materials[shape.material_index];
         let view = normalize(ray.origin - p);
         let light = -light_dir;
         let direct_lighting = pbr_lighting(material, view, normal, light, light_radiance);
 
-        // shadow
-        let shadow_atten = calculate_shadow_attenuation(p, normal, light);
-        result += direct_lighting * shadow_atten;
+        // FIXME: shadow
+        // let shadow_atten = calculate_shadow_attenuation(p, normal, light);
+        let shadow_atten = 1.0;
+        result += direct_lighting * shadow_atten * radiance_atten;
 
         // new ray
-        let reflection_normal_bias = 1e-3;
+        let reflection_normal_bias = 1e-1;
         let reflection_dir = reflect(-view, normal);
         var reflection_orig = vec3<f32>();
         if dot(reflection_dir, normal) >= 0.0 {
@@ -143,14 +140,15 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         }
         ray.origin = reflection_orig;
         ray.direction = reflection_dir;
+        radiance_atten *= 0.5;
     }
     return vec4(tone_mapping(result), 1.0);
 }
 
 fn generate_ray(frag_coords: vec2<f32>) -> Ray {
-    let near = camera.near_far_ssize.x;
-    let fov = camera.fov_reserved.x;
-    let size = camera.near_far_ssize.zw;
+    let near = u_camera.near_far_ssize.x;
+    let fov = u_camera.fov_reserved.x;
+    let size = u_camera.near_far_ssize.zw;
     let aspect = size.x / size.y;
 
     let ndc = vec2<f32>(-(frag_coords.x - 0.5), -(frag_coords.y - 0.5)) * 2.0;
@@ -163,7 +161,7 @@ fn generate_ray(frag_coords: vec2<f32>) -> Ray {
     let ray_dir_cam_space = vec3<f32>(tan_half_fov * aspect_ratio * ndc.x, tan_half_fov * ndc.y, 1.0);
 
     // Build a camera-to-world transformation matrix
-    let w = normalize(camera.eye_ray.direction);
+    let w = normalize(u_camera.eye_ray.direction);
     let u = normalize(cross(w, vec3<f32>(0.0, 1.0, 0.0)));
     let v = cross(u, w);
     let cam_to_world = mat3x3<f32>(u, v, w);
@@ -172,7 +170,7 @@ fn generate_ray(frag_coords: vec2<f32>) -> Ray {
     let ray_dir_world_space = normalize(cam_to_world * ray_dir_cam_space);
 
     var ray = Ray();
-    ray.origin = camera.eye_ray.origin;
+    ray.origin = u_camera.eye_ray.origin;
     ray.direction = ray_dir_world_space;
     return ray;
 }
@@ -203,8 +201,8 @@ fn ray_march(ray: Ray, max_dist: f32) -> Hit {
 
 fn scene_sdf(p: vec3<f32>) -> Hit {
     // FIXME: mock the sphere
-    let root_index = scene.root_index;
-    let shape = scene.shapes[root_index];
+    let root_index = 1;
+    let shape = u_shape.shapes[root_index];
 
     var hit = Hit();  
     hit.distance = shape_chain_sdf(shape, p);
@@ -217,7 +215,7 @@ fn shape_chain_sdf(shape: Shape, p: vec3<f32>) -> f32 {
     var cur = shape;
     var next_index = shape.next_index;
     while next_index != -1 {
-        let next = scene.shapes[next_index];
+        let next = u_shape.shapes[next_index];
         let sdf_i = shape_sdf(next, p);
         sdf_f = op_sdf(sdf_f, cur.op_index, sdf_i);
         cur = next;
@@ -239,21 +237,32 @@ fn shape_sdf(shape: Shape, p: vec3<f32>) -> f32 {
     //         }
     //     }
     // }
-    let type_index = shape.type_index;
-    switch (type_index) {
-        case 0: {
-            return sphere_sdf(shape, p);
-        }
-        default: {
-            return F32_MAX;
-        }
-    }
+    var type_index = shape.type_index;
+    var case0 = sphere_sdf(shape, p) * step(-0.5, f32(type_index)) - step(0.5, f32(type_index));
+    var case1 = cube_sdf(shape, p) * step(0.5, f32(type_index)) - step(1.5, f32(type_index));
+    return case0 + case1;
 }
 
 fn sphere_sdf(sphere: Shape, p: vec3<f32>) -> f32 {
     let center = vec3<f32>(sphere.data[0], sphere.data[1], sphere.data[2]);
     let radius = sphere.data[3];
     return length(center - p) - radius;
+}
+
+fn cube_sdf(cube: Shape, p: vec3<f32>) -> f32 {
+    let center = vec3<f32>(cube.data[0], cube.data[1], cube.data[2]);
+    let most_front_up_right = vec3<f32>(cube.data[3], cube.data[4], cube.data[5]);
+    var d_abs = p - center;
+    d_abs.x = abs(d_abs.x);
+    d_abs.y = abs(d_abs.y);
+    d_abs.z = abs(d_abs.z);
+
+    let d = d_abs - most_front_up_right;
+    var d_clamped = d;
+    d_clamped.x = max(d.x, 0.0);
+    d_clamped.y = max(d.y, 0.0);
+    d_clamped.z = max(d.z, 0.0);
+    return length(d_clamped) + min(max(max(d.x, d.y), d.z), 0.0);
 }
 
 fn op_sdf(sdf_a: f32, op: i32, sdf_b: f32) -> f32 {
@@ -290,7 +299,7 @@ fn op_sdf(sdf_a: f32, op: i32, sdf_b: f32) -> f32 {
 }
 
 fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
-    let shape = scene.shapes[hit.index];
+    let shape = u_shape.shapes[hit.index];
     
     let eps_grad = 1e-3;
     let p_x_p = p + vec3<f32>(eps_grad, 0.0, 0.0);

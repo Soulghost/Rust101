@@ -222,7 +222,7 @@ impl State {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
-                            min_binding_size: None,
+                            min_binding_size: wgpu::BufferSize::new(48),
                         },
                         count: None,
                     },
@@ -232,7 +232,7 @@ impl State {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
-                            min_binding_size: None,
+                            min_binding_size: wgpu::BufferSize::new(48),
                         },
                         count: None,
                     },
@@ -378,13 +378,13 @@ impl State {
         );
 
         // update scene uniform
-        let scene_bytes = scene.to_bytes();
+        let shape_bytes = scene.get_shape_bytes();
         // println!(
         //     "check scene buffer bytes , len = {}, data = {:?}",
         //     scene_bytes.len(),
         //     scene_bytes
         // );
-        self.queue.write_buffer(&self.scene_buffer, 0, &scene_bytes);
+        self.queue.write_buffer(&self.scene_buffer, 0, &shape_bytes);
 
         // update material uniform
         let material_bytes = scene.get_materials_bytes();

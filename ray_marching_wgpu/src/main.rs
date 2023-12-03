@@ -68,11 +68,16 @@ pub async fn run() {
                 } else {
                     Vector3f::new(0.5, 0.0, -0.25).normalize()
                 };
-                child_position += move_vec * (speed * delta_time);
-                if child_position.length() > max_distance {
-                    is_up = !is_up;
-                }
-                println!("fps: {}, child_pos: {}", 1.0 / delta_time, child_position);
+                // child_position += move_vec * (speed * delta_time);
+                // if child_position.length() > max_distance {
+                //     is_up = !is_up;
+                // }
+                println!(
+                    "delta_time: {}, fps: {}, child_pos: {}",
+                    delta_time,
+                    1.0 / delta_time,
+                    child_position
+                );
 
                 let scene = Scene::new(0, 0, 0.0, 0, Vector3f::zero());
                 let purper_material = Rc::new(PBRMaterial::new(

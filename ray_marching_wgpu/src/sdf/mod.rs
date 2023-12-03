@@ -274,22 +274,11 @@ impl<'a> Scene<'a> {
         result
     }
 
-    pub fn to_bytes(&'a self) -> Box<[u8]> {
+    pub fn get_shape_bytes(&'a self) -> Box<[u8]> {
         let mut buffer: Vec<u8> = Vec::new();
-        if !self.root_nodes.is_empty() {
-            // add root index
-            let root_index = self.root_nodes[0].index;
-            let root_index_bytes = root_index.to_le_bytes();
-
-            let root_count = self.root_nodes.len();
-            let root_count_bytes = root_count.to_u32().unwrap().to_le_bytes();
-            buffer.extend_from_slice(&root_index_bytes);
-            buffer.extend_from_slice(&root_count_bytes);
-
-            let pad0: [u8; 8] = [0; 8];
-            buffer.extend_from_slice(&pad0);
+        if !self.nodes.is_empty() {
             for node in self.nodes.iter() {
-                let node_bytes = node.to_bytes();
+                let node_bytes: [u8; 48] = node.to_bytes();
                 buffer.extend_from_slice(&node_bytes);
             }
         } else {
@@ -301,14 +290,9 @@ impl<'a> Scene<'a> {
 
     pub fn get_materials_bytes(&self) -> Box<[u8]> {
         let mut buffer: Vec<u8> = Vec::new();
-        if !self.root_nodes.is_empty() {
-            let count = self.materials.borrow().len();
-            let count_bytes = count.to_u32().unwrap().to_le_bytes();
-            buffer.extend_from_slice(&count_bytes);
-
-            let pad0: [u8; 12] = [0; 12];
-            buffer.extend_from_slice(&pad0);
-            for material in self.materials.borrow().iter() {
+        let materials = self.materials.borrow();
+        if !materials.is_empty() {
+            for material in materials.iter() {
                 let material_bytes = material.to_bytes();
                 buffer.extend_from_slice(&material_bytes);
             }
