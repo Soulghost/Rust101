@@ -10,6 +10,8 @@ use winit::{
     window::WindowBuilder,
 };
 
+use crate::sdf::primitive::Cube;
+
 pub mod domain;
 pub mod material;
 pub mod math;
@@ -94,6 +96,13 @@ pub async fn run() {
                     0.1,
                     0.025,
                 ));
+                let ground_material = Rc::new(PBRMaterial::new(
+                    Vector3f::new(-1.0, -1.0, -1.0),
+                    Vector3f::zero(),
+                    0.0,
+                    1.0,
+                    0.0,
+                ));
                 let child_sphere = scene.add_leaf_node(
                     Box::new(Sphere {
                         center: child_position,
@@ -106,11 +115,20 @@ pub async fn run() {
                         center: Vector3f::new(0.0, 0.0, 0.0),
                         radius: 0.5,
                     }),
-                    Rc::clone(&purper_material),
+                    Rc::clone(&metal_material),
                     sdf::ShapeOpType::SmoothUnion,
                     Some(child_sphere),
                 );
+
+                let ground_node = scene.add_leaf_node(
+                    Box::new(Cube {
+                        center: Vector3f::new(0.0, -4.0, 0.0),
+                        most_front_up_right: Vector3f::new(15.0, 0.25, 15.0),
+                    }),
+                    Rc::clone(&ground_material),
+                );
                 scene.add_root_node(root_sphere);
+                scene.add_root_node(ground_node);
                 state.update(&scene);
 
                 match state.render() {

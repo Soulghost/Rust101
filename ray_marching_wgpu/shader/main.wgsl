@@ -48,6 +48,10 @@ struct PBRMaterialUniform {
     materials: array<PBRMaterial>
 };
 
+struct SceneUniform {
+    root_indices: array<i32>
+};
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
@@ -62,9 +66,12 @@ struct VertexOutput {
 var<uniform> u_camera: CameraUniform;
 
 @group(1) @binding(0)
-var<storage, read> u_shape: ShapeUniform;
+var<storage, read> u_scene: SceneUniform;
 
 @group(1) @binding(1)
+var<storage, read> u_shape: ShapeUniform;
+
+@group(1) @binding(2)
 var<storage, read> u_material: PBRMaterialUniform;
 
 @vertex
@@ -99,19 +106,19 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     var result = vec3<f32>(0.0, 0.0, 0.0);
 
     // FIXME: fixed lighting
-    let background_color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    let background_color = vec4<f32>(0.235294, 0.67451, 0.843137, 1.0);
     let light_intensity = 10.0;
     let light_dir = vec3<f32>(0.32, -0.77, 0.56);
     let light_radiance = vec3<f32>(1.0, 1.0, 1.0) * light_intensity;
     var radiance_atten = 1.0;
     for (var depth = 0; depth < 2; depth++) {
         // ray marching
-        let hit = ray_march(_ray, 1e5);
+        let hit = ray_march(ray, 1e5);
         if hit.valid < 0.5 {
+            // hit skybox
             if depth == 0 {
+                // return the skybox color
                 return background_color;
-            } else {
-                break;
             }
         }
 
@@ -122,13 +129,18 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         let material = u_material.materials[shape.material_index];
         let view = normalize(ray.origin - p);
         let light = -light_dir;
-        let direct_lighting = pbr_lighting(material, view, normal, light, light_radiance);
+        let direct_lighting = pbr_lighting(p, material, view, normal, light, light_radiance);
 
         // FIXME: shadow
         // let shadow_atten = calculate_shadow_attenuation(p, normal, light);
         let shadow_atten = 1.0;
         result += direct_lighting * shadow_atten * radiance_atten;
 
+        let is_ground = material.albedo.x < 0.0;
+        if is_ground {
+            break;
+        }  
+        
         // new ray
         let reflection_normal_bias = 1e-1;
         let reflection_dir = reflect(-view, normal);
@@ -200,13 +212,20 @@ fn ray_march(ray: Ray, max_dist: f32) -> Hit {
 }
 
 fn scene_sdf(p: vec3<f32>) -> Hit {
-    // FIXME: mock the sphere
-    let root_index = 1;
-    let shape = u_shape.shapes[root_index];
-
-    var hit = Hit();  
-    hit.distance = shape_chain_sdf(shape, p);
-    hit.index = root_index;
+    var index = u_scene.root_indices[0];
+    var hit = Hit();
+    hit.distance = F32_MAX;
+    var i = 0;
+    while index != -1 {
+        let shape = u_shape.shapes[index];
+        var dist = shape_chain_sdf(shape, p);
+        if dist < hit.distance {
+            hit.distance = dist;
+            hit.index = index;
+        }
+        i += 1;
+        index = u_scene.root_indices[i];
+    }
     return hit;
 }
 
@@ -238,9 +257,20 @@ fn shape_sdf(shape: Shape, p: vec3<f32>) -> f32 {
     //     }
     // }
     var type_index = shape.type_index;
-    var case0 = sphere_sdf(shape, p) * step(-0.5, f32(type_index)) - step(0.5, f32(type_index));
-    var case1 = cube_sdf(shape, p) * step(0.5, f32(type_index)) - step(1.5, f32(type_index));
-    return case0 + case1;
+    switch (type_index) {
+        case 0: {
+            return sphere_sdf(shape, p);
+        }
+        case 1: {
+            return cube_sdf(shape, p);
+        }
+        default: {
+            return F32_MAX;
+        }
+    }
+    // var case0 = sphere_sdf(shape, p) * step(-0.5, f32(type_index)) - step(0.5, f32(type_index));
+    // var case1 = cube_sdf(shape, p) * step(0.5, f32(type_index)) - step(1.5, f32(type_index));
+    // return case0 + case1;
 }
 
 fn sphere_sdf(sphere: Shape, p: vec3<f32>) -> f32 {
@@ -320,8 +350,17 @@ fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
 }
 
 // PBR
-fn pbr_lighting(material: PBRMaterial, view: vec3<f32>, normal: vec3<f32>, light: vec3<f32>, incident_radiance: vec3<f32>) -> vec3<f32> {
-    let albedo = material.albedo;
+fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: vec3<f32>, light: vec3<f32>, incident_radiance: vec3<f32>) -> vec3<f32> {
+    var albedo = material.albedo;
+    if albedo.x < 0.0 {
+        // ground material
+        let k = i32(p.x * 0.5 + 1000.0) + i32(p.z * 0.5 + 1000.0);
+        if k % 2 != 0 {
+            albedo = vec3<f32>(1.0, 1.0, 1.0) * 0.8;
+        } else {
+            albedo = vec3<f32>(1.0, 1.0, 1.0) * 0.3;
+        }
+    }
     let ambient = vec3<f32>(0.03) * albedo * (1.0 - material.ao);
     let f0 = lerp3(vec3<f32>(0.04), albedo, material.metallic);
     let half_vec = normalize((view + light) * 0.5);

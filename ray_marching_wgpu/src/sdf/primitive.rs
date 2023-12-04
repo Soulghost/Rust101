@@ -64,6 +64,17 @@ impl Shape for Cube {
         d_clamped.z = f64::max(d.z, 0.0);
         d_clamped.length() + f64::min(f64::max(f64::max(d.x, d.y), d.z), 0.0)
     }
+
+    fn to_bytes(&self) -> [u8; 32] {
+        let mut bytes = [0u8; 32];
+        unsafe {
+            let center_bytes: [u8; 12] = transmute(self.center.to32());
+            let most_front_up_right_bytes: [u8; 12] = transmute(self.most_front_up_right.to32());
+            bytes[0..12].copy_from_slice(&center_bytes);
+            bytes[12..24].copy_from_slice(&most_front_up_right_bytes);
+        }
+        bytes
+    }
 }
 
 impl Display for Cube {

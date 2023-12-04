@@ -274,6 +274,22 @@ impl<'a> Scene<'a> {
         result
     }
 
+    pub fn get_scene_bytes(&'a self) -> Box<[u8]> {
+        let mut buffer: Vec<u8> = Vec::new();
+        let sentinel: i32 = -1;
+        let sentinel_bytes = sentinel.to_le_bytes();
+        if !self.root_nodes.is_empty() {
+            for node in self.root_nodes.iter() {
+                let index = node.index.to_le_bytes();
+                buffer.extend_from_slice(&index);
+            }
+            buffer.extend_from_slice(&sentinel_bytes);
+        } else {
+            buffer.extend_from_slice(&sentinel_bytes);
+        }
+        buffer.into_boxed_slice()
+    }
+
     pub fn get_shape_bytes(&'a self) -> Box<[u8]> {
         let mut buffer: Vec<u8> = Vec::new();
         if !self.nodes.is_empty() {
