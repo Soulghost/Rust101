@@ -49,8 +49,11 @@ impl PBRMaterial {
             let metallic_bytes = self.metallic.to_f32().unwrap().to_le_bytes();
             let roughness_bytes = self.roughness.to_f32().unwrap().to_le_bytes();
             let ao_bytes = self.ao.to_f32().unwrap().to_le_bytes();
+
+            let half_bytes = (0.25 as f32).to_le_bytes();
             bytes[0..12].copy_from_slice(&albedo_bytes);
             bytes[16..28].copy_from_slice(&emission_bytes);
+            // bytes[28..32].copy_from_slice(&half_bytes);
             bytes[32..36].copy_from_slice(&metallic_bytes);
             bytes[36..40].copy_from_slice(&roughness_bytes);
             bytes[40..44].copy_from_slice(&ao_bytes);

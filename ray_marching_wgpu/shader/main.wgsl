@@ -36,11 +36,11 @@ struct ShapeUniform {
 };
 
 struct PBRMaterial {
-    albedo: vec3<f32>, // 0
-    emission: vec3<f32>, // 16
-    metallic: f32, // 32
-    roughness: f32, // 36
-    ao: f32, // 40
+    albedo: vec4<f32>, // 0 - 16
+    emission: vec4<f32>, // 16 - 32
+    metallic: f32, // 32 - 36
+    roughness: f32, // 36 - 40
+    ao: f32, // 40 - 44
     pad0: f32, // 44 - 48
 };
 
@@ -97,7 +97,7 @@ struct Hit {
     valid: f32,
     distance: f32,
     index: i32,
-    material: PBRMaterial
+    material_index: i32
 }
 
 // Shading
@@ -107,18 +107,22 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
 
     // FIXME: fixed lighting
     let background_color = vec4<f32>(0.235294, 0.67451, 0.843137, 1.0);
-    let light_intensity = 10.0;
+    let light_intensity = 5.0;
     let light_dir = vec3<f32>(0.32, -0.77, 0.56);
     let light_radiance = vec3<f32>(1.0, 1.0, 1.0) * light_intensity;
-    var radiance_atten = 1.0;
-    for (var depth = 0; depth < 2; depth++) {
+    var color_mask = vec3<f32>(1.0);
+    var ignore_index = -1;
+    for (var depth = 0; depth < 1; depth++) {
         // ray marching
-        let hit = ray_march(ray, 1e5);
+        let hit = ray_march(ray, 1e5, ignore_index);
         if hit.valid < 0.5 {
             // hit skybox
             if depth == 0 {
                 // return the skybox color
                 return background_color;
+            } else {
+                result += background_color.xyz;
+                break;
             }
         }
 
@@ -127,19 +131,35 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         let normal = calculate_normal(hit, p);
         let shape = u_shape.shapes[hit.index];
         let material = u_material.materials[shape.material_index];
+        // if hit.valid > 0.0 {
+        //     // return vec4(f32(material.roughness), 0.0, 0.0, 1.0);
+        //     // return vec4(material.albedo.rgb, 1.0);
+        // }
         let view = normalize(ray.origin - p);
         let light = -light_dir;
-        let direct_lighting = pbr_lighting(p, material, view, normal, light, light_radiance);
+        var spec_factor = vec3<f32>();
+        let direct_lighting = pbr_lighting(p, material, view, normal, light, light_radiance, &spec_factor);
+        // if hit.valid > 0.0 {
+        //     return vec4(spec_factor, 1.0);
+        // }
+        // if depth > 0 {
+        //     return vec4(f32(hit.index) / 2.0, 0.0, 0.0, 1.0);
+        // }
 
         // FIXME: shadow
         // let shadow_atten = calculate_shadow_attenuation(p, normal, light);
         let shadow_atten = 1.0;
-        result += direct_lighting * shadow_atten * radiance_atten;
+        result += direct_lighting * shadow_atten * color_mask;
 
+        // the ground reflects nothing
         let is_ground = material.albedo.x < 0.0;
         if is_ground {
             break;
-        }  
+        } 
+        else {
+            // return vec4(dot(normal, light), 0.0, 0.0, 1.0);
+            return vec4(normal, 1.0);
+        }
         
         // new ray
         let reflection_normal_bias = 1e-1;
@@ -152,7 +172,8 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         }
         ray.origin = reflection_orig;
         ray.direction = reflection_dir;
-        radiance_atten *= 0.5;
+        color_mask *= 0.75;
+        // return vec4(reflection_dir.zzz, 1.0);
     }
     return vec4(tone_mapping(result), 1.0);
 }
@@ -188,7 +209,7 @@ fn generate_ray(frag_coords: vec2<f32>) -> Ray {
 }
 
 // Ray Marching
-fn ray_march(ray: Ray, max_dist: f32) -> Hit {
+fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32) -> Hit {
     var result = Hit();
     result.valid = 0.0;
 
@@ -197,7 +218,7 @@ fn ray_march(ray: Ray, max_dist: f32) -> Hit {
     for (var i = 0; i < 300; i++) {
         let p = ray.origin + ray.direction * dist;
         let hit = scene_sdf(p);
-        if hit.distance < march_accuracy {
+        if hit.distance < march_accuracy && hit.index != ignore_index {
             result.valid = 1.0;
             result.distance = dist;
             result.index = hit.index;
@@ -330,28 +351,37 @@ fn op_sdf(sdf_a: f32, op: i32, sdf_b: f32) -> f32 {
 
 fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
     let shape = u_shape.shapes[hit.index];
-    
-    let eps_grad = 1e-3;
-    let p_x_p = p + vec3<f32>(eps_grad, 0.0, 0.0);
-    let p_x_m = p - vec3<f32>(eps_grad, 0.0, 0.0);
-    let p_y_p = p + vec3<f32>(0.0, eps_grad, 0.0);
-    let p_y_m = p - vec3<f32>(0.0, eps_grad, 0.0);
-    let p_z_p = p + vec3<f32>(0.0, 0.0, eps_grad);
-    let p_z_m = p - vec3<f32>(0.0, 0.0, eps_grad);
-
-    let sdf_x_p = shape_sdf(shape, p_x_p);
-    let sdf_x_m = shape_sdf(shape, p_x_m);
-    let sdf_y_p = shape_sdf(shape, p_y_p);
-    let sdf_y_m = shape_sdf(shape, p_y_m);
-    let sdf_z_p = shape_sdf(shape, p_z_p);
-    let sdf_z_m = shape_sdf(shape, p_z_m);
-    let normal = vec3<f32>(sdf_x_p - sdf_x_m, sdf_y_p - sdf_y_m, sdf_z_p - sdf_z_m) / (2.0 * eps_grad);
-    return normal;
+    var e = vec2(1.0,-1.0)*0.5773*0.0005;
+    return normalize( e.xyy*scene_sdf(p + e.xyy ).distance + 
+					  e.yyx*scene_sdf(p + e.yyx ).distance + 
+					  e.yxy*shape_sdf(shape, p + e.yxy ) + 
+					  e.xxx*shape_sdf(shape, p + e.xxx ) );
 }
 
+// fn _calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
+//     let shape = u_shape.shapes[hit.index];
+    
+//     let eps_grad = 1e-3;
+//     let p_x_p = p + vec3<f32>(eps_grad, 0.0, 0.0);
+//     let p_x_m = p - vec3<f32>(eps_grad, 0.0, 0.0);
+//     let p_y_p = p + vec3<f32>(0.0, eps_grad, 0.0);
+//     let p_y_m = p - vec3<f32>(0.0, eps_grad, 0.0);
+//     let p_z_p = p + vec3<f32>(0.0, 0.0, eps_grad);
+//     let p_z_m = p - vec3<f32>(0.0, 0.0, eps_grad);
+
+//     let sdf_x_p = shape_sdf(shape, p_x_p);
+//     let sdf_x_m = shape_sdf(shape, p_x_m);
+//     let sdf_y_p = shape_sdf(shape, p_y_p);
+//     let sdf_y_m = shape_sdf(shape, p_y_m);
+//     let sdf_z_p = shape_sdf(shape, p_z_p);
+//     let sdf_z_m = shape_sdf(shape, p_z_m);
+//     let normal = vec3<f32>(sdf_x_p - sdf_x_m, sdf_y_p - sdf_y_m, sdf_z_p - sdf_z_m) / (2.0 * eps_grad);
+//     return normal;
+// }
+
 // PBR
-fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: vec3<f32>, light: vec3<f32>, incident_radiance: vec3<f32>) -> vec3<f32> {
-    var albedo = material.albedo;
+fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: vec3<f32>, light: vec3<f32>, incident_radiance: vec3<f32>, specular_factor: ptr<function, vec3<f32>>) -> vec3<f32> {
+    var albedo = material.albedo.xyz;
     if albedo.x < 0.0 {
         // ground material
         let k = i32(p.x * 0.5 + 1000.0) + i32(p.z * 0.5 + 1000.0);
@@ -373,6 +403,7 @@ fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: ve
     let denominator = 4.0 * max(dot(normal, view), 0.0) * max(dot(normal, light), 0.0) + EPSILON;
     let specular = numerator / denominator;
     let diffuse = albedo * kd / PI;
+    *specular_factor = specular;
     return ambient + (diffuse + specular) * incident_radiance * max(dot(light, normal), 0.0);
 }
 
@@ -420,7 +451,7 @@ fn calculate_shadow_attenuation(p: vec3<f32>, normal: vec3<f32>, light: vec3<f32
     var ray = Ray();
     ray.origin = origin;
     ray.direction = light;
-    let hit = ray_march(ray, 1e4);
+    let hit = ray_march(ray, 1e4, -1);
     return 1.0 - hit.valid;
 }
 
