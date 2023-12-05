@@ -27,9 +27,9 @@ pub async fn run() {
     let mut state = State::new(window).await;
 
     // test animation
-    let max_distance = 0.8;
+    let max_distance = 1.25;
     let mut is_up = true;
-    let speed = 1.5;
+    let speed = 1.0;
     let mut prev_time = Instant::now();
     let mut child_position = Vector3f::new(0.5, 0.0, -0.25);
     child_position = Vector3f::new(-0.82517262369708, 0.0, 0.3386258631184854);
@@ -75,10 +75,10 @@ pub async fn run() {
                 } else {
                     Vector3f::new(0.5, 0.0, -0.25).normalize()
                 };
-                // child_position += move_vec * (speed * delta_time);
-                // if child_position.length() > max_distance {
-                //     is_up = !is_up;
-                // }
+                child_position += move_vec * (speed * delta_time);
+                if child_position.length() > max_distance {
+                    is_up = !is_up;
+                }
                 println!(
                     "delta_time: {}, fps: {}, child_pos: {}",
                     delta_time,
@@ -121,7 +121,7 @@ pub async fn run() {
                         radius: 0.5,
                     }),
                     Rc::clone(&metal_material),
-                    sdf::ShapeOpType::Union,
+                    sdf::ShapeOpType::SmoothUnion,
                     Some(child_sphere),
                 );
 
@@ -142,7 +142,7 @@ pub async fn run() {
                 //     Rc::clone(&purper_material),
                 // );
                 scene.add_root_node(root_sphere);
-                // scene.add_root_node(ground_node);
+                scene.add_root_node(ground_node);
                 // scene.add_root_node(emission_cube);
                 state.update(&scene);
 

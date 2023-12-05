@@ -112,7 +112,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     let light_radiance = vec3<f32>(1.0, 1.0, 1.0) * light_intensity;
     var color_mask = vec3<f32>(1.0);
     var ignore_index = -1;
-    for (var depth = 0; depth < 1; depth++) {
+    for (var depth = 0; depth < 2; depth++) {
         // ray marching
         let hit = ray_march(ray, 1e5, ignore_index);
         if hit.valid < 0.5 {
@@ -147,8 +147,8 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         // }
 
         // FIXME: shadow
-        // let shadow_atten = calculate_shadow_attenuation(p, normal, light);
-        let shadow_atten = 1.0;
+        let shadow_atten = calculate_shadow_attenuation(p, normal, light);
+        // let shadow_atten = 1.0;
         result += direct_lighting * shadow_atten * color_mask;
 
         // the ground reflects nothing
@@ -156,10 +156,10 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         if is_ground {
             break;
         } 
-        else {
-            // return vec4(dot(normal, light), 0.0, 0.0, 1.0);
-            return vec4(normal, 1.0);
-        }
+        // else {
+        //     // return vec4(dot(normal, light), 0.0, 0.0, 1.0);
+        //     return vec4(normal, 1.0);
+        // }
         
         // new ray
         let reflection_normal_bias = 1e-1;
@@ -354,8 +354,8 @@ fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
     var e = vec2(1.0,-1.0)*0.5773*0.0005;
     return normalize( e.xyy*scene_sdf(p + e.xyy ).distance + 
 					  e.yyx*scene_sdf(p + e.yyx ).distance + 
-					  e.yxy*shape_sdf(shape, p + e.yxy ) + 
-					  e.xxx*shape_sdf(shape, p + e.xxx ) );
+					  e.yxy*scene_sdf(p + e.yxy ).distance + 
+					  e.xxx*scene_sdf(p + e.xxx ).distance );
 }
 
 // fn _calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
