@@ -112,7 +112,8 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     let light_radiance = vec3<f32>(1.0, 1.0, 1.0) * light_intensity;
     var color_mask = vec3<f32>(1.0);
     var ignore_index = -1;
-    for (var depth = 0; depth < 2; depth++) {
+    var source_metallic = 0.0;
+    for (var depth = 0; depth < 3; depth++) {
         // ray marching
         let hit = ray_march(ray, 1e5, ignore_index);
         if hit.valid < 0.5 {
@@ -121,7 +122,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
                 // return the skybox color
                 return background_color;
             } else {
-                result += background_color.xyz;
+                result += background_color.xyz * color_mask;
                 break;
             }
         }
@@ -131,6 +132,9 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         let normal = calculate_normal(hit, p);
         let shape = u_shape.shapes[hit.index];
         let material = u_material.materials[shape.material_index];
+        if depth == 0 {
+            source_metallic = material.metallic;
+        }
         // if hit.valid > 0.0 {
         //     // return vec4(f32(material.roughness), 0.0, 0.0, 1.0);
         //     // return vec4(material.albedo.rgb, 1.0);
@@ -172,7 +176,8 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         }
         ray.origin = reflection_orig;
         ray.direction = reflection_dir;
-        color_mask *= 0.75;
+        color_mask *= 0.75 * source_metallic;
+        // return vec4(color_mask, 1.0);
         // return vec4(reflection_dir.zzz, 1.0);
     }
     return vec4(tone_mapping(result), 1.0);

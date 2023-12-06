@@ -153,7 +153,7 @@ impl State {
         let size = window.inner_size();
         let camera = Camera {
             screen_size: (size.width as f32, size.height as f32).into(),
-            eye: (0.0, 1.0, -2.0).into(),
+            eye: (0.0, 1.0, -6.0).into(),
             target: (0.0, 0.0, 0.0).into(),
             up: cgmath::Vector3::unit_y(),
             aspect: config.width as f32 / config.height as f32,

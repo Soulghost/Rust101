@@ -5,12 +5,18 @@ use math::Vector3f;
 use pipeline::State;
 use sdf::{primitive::Sphere, Scene};
 use winit::{
+    dpi::PhysicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
 
-use crate::sdf::primitive::Cube;
+use crate::{
+    math::lerp,
+    sdf::{primitive::Cube, ShapeOp},
+};
+use std::any::Any;
+use tween::Tweener;
 
 pub mod domain;
 pub mod material;
@@ -24,6 +30,7 @@ pub async fn run() {
     env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
+    window.set_inner_size(PhysicalSize::new(1600, 900));
     let mut state = State::new(window).await;
 
     // test animation
@@ -33,6 +40,11 @@ pub async fn run() {
     let mut prev_time = Instant::now();
     let mut child_position = Vector3f::new(0.5, 0.0, -0.25);
     child_position = Vector3f::new(-0.82517262369708, 0.0, 0.3386258631184854);
+
+    let mut radius_tween0 = Tweener::bounce_in(0.4, 0.7, 0.4);
+    let mut radius_tween1 = Tweener::bounce_out(0.7, 0.4, 0.5);
+    let mut radius_tween_index = 0;
+    let mut elpased_time: f32 = 0.0;
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::WindowEvent {
@@ -65,6 +77,7 @@ pub async fn run() {
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
                 let now_time = Instant::now();
                 let delta_time = now_time.duration_since(prev_time).as_secs_f32();
+                elpased_time += delta_time;
                 if delta_time < 1.0 / 60.0 {
                     // skip this frame
                     return;
@@ -90,8 +103,8 @@ pub async fn run() {
                 let purper_material = Rc::new(PBRMaterial::new(
                     Vector3f::new(235.0 / 255.0, 81.0 / 255.0, 1.0),
                     Vector3f::zero(),
-                    0.0,
-                    0.95,
+                    0.25,
+                    0.85,
                     0.05,
                 ));
                 let metal_material = Rc::new(PBRMaterial::new(
@@ -115,10 +128,26 @@ pub async fn run() {
                     }),
                     Rc::clone(&metal_material),
                 );
+
+                let radius = if radius_tween_index == 0 {
+                    let val = radius_tween0.move_by(delta_time);
+                    if radius_tween0.is_finished() {
+                        radius_tween0.move_to(0.0);
+                        radius_tween_index = 1;
+                    }
+                    val
+                } else {
+                    let val = radius_tween1.move_by(delta_time);
+                    if radius_tween1.is_finished() {
+                        radius_tween1.move_to(0.0);
+                        radius_tween_index = 0;
+                    }
+                    val
+                };
                 let root_sphere = scene.add_node(
                     Box::new(Sphere {
                         center: Vector3f::new(0.0, 0.0, 0.0),
-                        radius: 0.5,
+                        radius,
                     }),
                     Rc::clone(&metal_material),
                     sdf::ShapeOpType::SmoothUnion,
@@ -141,8 +170,29 @@ pub async fn run() {
                 //     }),
                 //     Rc::clone(&purper_material),
                 // );
-                scene.add_root_node(root_sphere);
+                println!("i_time {}", elpased_time);
+                let mut prev_op: Option<&'_ ShapeOp<'_>> = None;
+                for i in 0..16 {
+                    let fi = i as f64;
+                    let time = elpased_time as f64 * (f64::fract(fi * 412.531 + 0.513) - 0.5) * 2.0;
+                    let mut center =
+                        Vector3f::new(52.5126, 64.62744, 632.25) * fi + Vector3f::scalar(time);
+                    center.x = f64::sin(center.x);
+                    center.y = f64::sin(center.y);
+                    center.z = f64::sin(center.z);
+                    center = &center * &Vector3f::new(2.0, 2.0, 0.8);
+                    let radius = lerp(0.3, 0.7, f64::fract(fi * 412.531 + 0.5124));
+                    let current_op = scene.add_node(
+                        Box::new(Sphere { center, radius }),
+                        Rc::clone(&metal_material),
+                        sdf::ShapeOpType::SmoothUnion,
+                        prev_op,
+                    );
+                    prev_op = Some(current_op);
+                }
+                // scene.add_root_node(root_sphere);
                 scene.add_root_node(ground_node);
+                scene.add_root_node(prev_op.unwrap());
                 // scene.add_root_node(emission_cube);
                 state.update(&scene);
 
