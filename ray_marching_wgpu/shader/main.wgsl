@@ -115,16 +115,32 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     var source_metallic = 0.0;
     for (var depth = 0; depth < 3; depth++) {
         // ray marching
-        let hit = ray_march(ray, 1e5, ignore_index);
+        var nearest_hit = Hit();
+        let hit = ray_march(ray, 1e5, ignore_index, &nearest_hit);
+        var emission_halo = vec3<f32>(0.0);
+        let emission_halo_factor = 0.3;
+        {
+            // handle emission haloc
+            let shape = u_shape.shapes[nearest_hit.index];
+            let nearest_material = u_material.materials[shape.material_index];
+            let a = emission_halo_factor;
+            let b = 0.0;
+            let c = 0.2; // Adjust this for the width of the halo
+            let emission_halo_atten = a * exp(-0.5 * pow((nearest_hit.distance - b) / c, 2.0));
+            // let emission_halo_atten = clamp(1.0 / (pow(nearest_hit.distance, 1.1)), 0.0, 1.0);
+            emission_halo = nearest_material.emission.rgb * nearest_material.albedo.rgb * emission_halo_atten * color_mask;
+            result += emission_halo;
+        }
+
         if hit.valid < 0.5 {
             // hit skybox
             if depth == 0 {
                 // return the skybox color
-                return background_color;
+                result += background_color.rgb;
             } else {
-                result += background_color.xyz * color_mask;
-                break;
+                result += background_color.rgb * color_mask;
             }
+            break;
         }
 
         // shading
@@ -135,35 +151,25 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         if depth == 0 {
             source_metallic = material.metallic;
         }
-        // if hit.valid > 0.0 {
-        //     // return vec4(f32(material.roughness), 0.0, 0.0, 1.0);
-        //     // return vec4(material.albedo.rgb, 1.0);
-        // }
+
         let view = normalize(ray.origin - p);
         let light = -light_dir;
         var spec_factor = vec3<f32>();
         let direct_lighting = pbr_lighting(p, material, view, normal, light, light_radiance, &spec_factor);
-        // if hit.valid > 0.0 {
-        //     return vec4(spec_factor, 1.0);
-        // }
-        // if depth > 0 {
-        //     return vec4(f32(hit.index) / 2.0, 0.0, 0.0, 1.0);
-        // }
 
-        // FIXME: shadow
+        // emission
+        let emission = material.emission.rgb * material.albedo.rgb * color_mask;
+        result += emission;
+
         let shadow_atten = calculate_shadow_attenuation(p, normal, light);
-        // let shadow_atten = 1.0;
         result += direct_lighting * shadow_atten * color_mask;
 
         // the ground reflects nothing
         let is_ground = material.albedo.x < 0.0;
         if is_ground {
+            result += emission_halo;
             break;
         } 
-        // else {
-        //     // return vec4(dot(normal, light), 0.0, 0.0, 1.0);
-        //     return vec4(normal, 1.0);
-        // }
         
         // new ray
         let reflection_normal_bias = 1e-1;
@@ -214,12 +220,18 @@ fn generate_ray(frag_coords: vec2<f32>) -> Ray {
 }
 
 // Ray Marching
-fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32) -> Hit {
+fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32, nearest: ptr<function, Hit>) -> Hit {
     var result = Hit();
     result.valid = 0.0;
 
     var dist = 0.0;
     let march_accuracy = 1e-3;
+    var min_dist = F32_MAX;
+
+    var nearest_hit = Hit();
+    nearest_hit.valid = 0.0;
+    nearest_hit.distance = F32_MAX;
+
     for (var i = 0; i < 300; i++) {
         let p = ray.origin + ray.direction * dist;
         let hit = scene_sdf(p);
@@ -228,12 +240,17 @@ fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32) -> Hit {
             result.distance = dist;
             result.index = hit.index;
         }
+        if hit.distance < min_dist && u_material.materials[u_shape.shapes[hit.index].material_index].albedo.x > 0.0 {
+            min_dist = hit.distance;
+            nearest_hit = hit;
+        }
         dist += hit.distance;
         if dist >= max_dist {
             break;
         }
     }
 
+    *nearest = nearest_hit;
     return result;
 }
 
@@ -456,7 +473,8 @@ fn calculate_shadow_attenuation(p: vec3<f32>, normal: vec3<f32>, light: vec3<f32
     var ray = Ray();
     ray.origin = origin;
     ray.direction = light;
-    let hit = ray_march(ray, 1e4, -1);
+    var nearest_hit = Hit();
+    let hit = ray_march(ray, 1e4, -1, &nearest_hit);
     return 1.0 - hit.valid;
 }
 
