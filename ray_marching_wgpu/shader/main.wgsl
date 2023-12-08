@@ -119,7 +119,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         let hit = ray_march(ray, 1e5, ignore_index, &nearest_hit);
         var emission_halo = vec3<f32>(0.0);
         let emission_halo_factor = 0.3;
-        {
+        if nearest_hit.valid > 0.5 {
             // handle emission haloc
             let shape = u_shape.shapes[nearest_hit.index];
             let nearest_material = u_material.materials[shape.material_index];
@@ -167,7 +167,6 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         // the ground reflects nothing
         let is_ground = material.albedo.x < 0.0;
         if is_ground {
-            result += emission_halo;
             break;
         } 
         
@@ -220,7 +219,7 @@ fn generate_ray(frag_coords: vec2<f32>) -> Ray {
 }
 
 // Ray Marching
-fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32, nearest: ptr<function, Hit>) -> Hit {
+fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32, nearest_emission: ptr<function, Hit>) -> Hit {
     var result = Hit();
     result.valid = 0.0;
 
@@ -240,9 +239,14 @@ fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32, nearest: ptr<function, 
             result.distance = dist;
             result.index = hit.index;
         }
-        if hit.distance < min_dist && u_material.materials[u_shape.shapes[hit.index].material_index].albedo.x > 0.0 {
-            min_dist = hit.distance;
-            nearest_hit = hit;
+        if hit.distance < min_dist {
+            let material = u_material.materials[u_shape.shapes[hit.index].material_index];
+            if length(material.emission) > 0.05 {
+                min_dist = hit.distance;
+                nearest_hit.index = hit.index;
+                nearest_hit.distance = hit.distance;
+                nearest_hit.valid = 1.0;
+            }
         }
         dist += hit.distance;
         if dist >= max_dist {
@@ -250,7 +254,7 @@ fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32, nearest: ptr<function, 
         }
     }
 
-    *nearest = nearest_hit;
+    *nearest_emission = nearest_hit;
     return result;
 }
 
