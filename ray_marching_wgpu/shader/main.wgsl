@@ -21,16 +21,6 @@ struct Shape {
     data: array<f32, 8>
 };
 
-// struct SphereShape /*: Shape*/ {
-//     type_index: i32, // 0
-//     material_index: i32, // 4
-//     op_index: i32, // 8
-//     next_index: i32, // 12
-//     center: array<f32, 3>, // 16 - 28
-//     radius: f32, // 28 - 32
-//     ...
-// };
-
 struct ShapeUniform {
     shapes: array<Shape>
 };
@@ -86,9 +76,6 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // return vec4(u_material.materials[0].albedo, 1.0);
-    // return vec4(f32(u_shape.shapes[0].material_index), 0.0, 0.0, 1.0);
-
     var ray = generate_ray(in.tex_coords);
     return cast_ray(ray);
 }
@@ -127,7 +114,6 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
             let b = 0.0;
             let c = 0.2; // Adjust this for the width of the halo
             let emission_halo_atten = a * exp(-0.5 * pow((nearest_hit.distance - b) / c, 2.0));
-            // let emission_halo_atten = clamp(1.0 / (pow(nearest_hit.distance, 1.1)), 0.0, 1.0);
             emission_halo = nearest_material.emission.rgb * nearest_material.albedo.rgb * emission_halo_atten * color_mask;
             result += emission_halo;
         }
@@ -182,8 +168,6 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         ray.origin = reflection_orig;
         ray.direction = reflection_dir;
         color_mask *= 0.75 * source_metallic;
-        // return vec4(color_mask, 1.0);
-        // return vec4(reflection_dir.zzz, 1.0);
     }
     return vec4(tone_mapping(result), 1.0);
 }
@@ -315,9 +299,6 @@ fn shape_sdf(shape: Shape, p: vec3<f32>) -> f32 {
             return F32_MAX;
         }
     }
-    // var case0 = sphere_sdf(shape, p) * step(-0.5, f32(type_index)) - step(0.5, f32(type_index));
-    // var case1 = cube_sdf(shape, p) * step(0.5, f32(type_index)) - step(1.5, f32(type_index));
-    // return case0 + case1;
 }
 
 fn sphere_sdf(sphere: Shape, p: vec3<f32>) -> f32 {
@@ -383,27 +364,6 @@ fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
 					  e.yxy*scene_sdf(p + e.yxy ).distance + 
 					  e.xxx*scene_sdf(p + e.xxx ).distance );
 }
-
-// fn _calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
-//     let shape = u_shape.shapes[hit.index];
-    
-//     let eps_grad = 1e-3;
-//     let p_x_p = p + vec3<f32>(eps_grad, 0.0, 0.0);
-//     let p_x_m = p - vec3<f32>(eps_grad, 0.0, 0.0);
-//     let p_y_p = p + vec3<f32>(0.0, eps_grad, 0.0);
-//     let p_y_m = p - vec3<f32>(0.0, eps_grad, 0.0);
-//     let p_z_p = p + vec3<f32>(0.0, 0.0, eps_grad);
-//     let p_z_m = p - vec3<f32>(0.0, 0.0, eps_grad);
-
-//     let sdf_x_p = shape_sdf(shape, p_x_p);
-//     let sdf_x_m = shape_sdf(shape, p_x_m);
-//     let sdf_y_p = shape_sdf(shape, p_y_p);
-//     let sdf_y_m = shape_sdf(shape, p_y_m);
-//     let sdf_z_p = shape_sdf(shape, p_z_p);
-//     let sdf_z_m = shape_sdf(shape, p_z_m);
-//     let normal = vec3<f32>(sdf_x_p - sdf_x_m, sdf_y_p - sdf_y_m, sdf_z_p - sdf_z_m) / (2.0 * eps_grad);
-//     return normal;
-// }
 
 // PBR
 fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: vec3<f32>, light: vec3<f32>, incident_radiance: vec3<f32>, specular_factor: ptr<function, vec3<f32>>) -> vec3<f32> {
