@@ -161,7 +161,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         let emission = material.emission.rgb * material.albedo.rgb * color_mask;
         result += emission;
 
-        let shadow_atten = calculate_shadow_attenuation(p, normal, light);
+        let shadow_atten = calculate_shadow_attenuation(p, normal, light, 16.0);
         result += direct_lighting * shadow_atten * color_mask;
 
         // the ground reflects nothing
@@ -465,7 +465,7 @@ fn fresnel_schlick(cos_theta: f32, f0: vec3<f32>) -> vec3<f32> {
     return f0 + f1;
 }
 
-fn calculate_shadow_attenuation(p: vec3<f32>, normal: vec3<f32>, light: vec3<f32>) -> f32 {
+fn calculate_shadow_attenuation(p: vec3<f32>, normal: vec3<f32>, light: vec3<f32>, k: f32) -> f32 {
     let normal_bias = 1e-1;
     var origin = vec3<f32>();
     if dot(normal, light) >= 0.0 {
@@ -477,9 +477,25 @@ fn calculate_shadow_attenuation(p: vec3<f32>, normal: vec3<f32>, light: vec3<f32
     var ray = Ray();
     ray.origin = origin;
     ray.direction = light;
-    var nearest_hit = Hit();
-    let hit = ray_march(ray, 1e4, -1, &nearest_hit);
-    return 1.0 - hit.valid;
+
+    let max_dist = 1000.0;
+    var dist = 0.0;
+    var result = 1.0;
+    let march_accuracy = 1e-3;
+
+    for (var i = 0; i < 256; i++) {
+        let p = ray.origin + ray.direction * dist;
+        let hit = scene_sdf(p);
+        if hit.distance < march_accuracy {
+            return 0.0;
+        }
+        result = min(result, k * hit.distance / dist);
+        dist += hit.distance;
+        if dist >= max_dist {
+            break;
+        }
+    }
+    return result;
 }
 
 // HDR
