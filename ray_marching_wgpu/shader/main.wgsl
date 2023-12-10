@@ -38,7 +38,14 @@ struct PBRMaterialUniform {
     materials: array<PBRMaterial>
 };
 
+struct DirectionalLight {
+    direction: vec4<f32>, // 0 - 16
+    color: vec4<f32> // 16 - 32
+};
+
 struct SceneUniform {
+    background_color: vec4<f32>,
+    main_light: DirectionalLight,
     root_indices: array<i32>
 };
 
@@ -93,17 +100,15 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     var result = vec3<f32>(0.0, 0.0, 0.0);
 
     // FIXME: fixed lighting
-    let background_color = vec4<f32>(0.235294, 0.67451, 0.843137, 1.0);
-    let light_intensity = 5.0;
-    let light_dir = vec3<f32>(0.32, -0.77, 0.56);
-    let light_radiance = vec3<f32>(1.0, 1.0, 1.0) * light_intensity;
+    let background_color = u_scene.background_color.rgb;
+    let light_dir = u_scene.main_light.direction.xyz;
+    let light_radiance = u_scene.main_light.color.rgb;
     var color_mask = vec3<f32>(1.0);
-    var ignore_index = -1;
     var source_metallic = 0.0;
     for (var depth = 0; depth < 3; depth++) {
         // ray marching
         var nearest_hit = Hit();
-        let hit = ray_march(ray, 1e5, ignore_index, &nearest_hit);
+        let hit = ray_march(ray, 1e5, &nearest_hit);
         var emission_halo = vec3<f32>(0.0);
         let emission_halo_factor = 0.3;
         if nearest_hit.valid > 0.5 {
@@ -122,9 +127,9 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
             // hit skybox
             if depth == 0 {
                 // return the skybox color
-                result += background_color.rgb;
+                result += background_color;
             } else {
-                result += background_color.rgb * color_mask;
+                result += background_color * color_mask;
             }
             break;
         }
@@ -203,7 +208,7 @@ fn generate_ray(frag_coords: vec2<f32>) -> Ray {
 }
 
 // Ray Marching
-fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32, nearest_emission: ptr<function, Hit>) -> Hit {
+fn ray_march(ray: Ray, max_dist: f32, nearest_emission: ptr<function, Hit>) -> Hit {
     var result = Hit();
     result.valid = 0.0;
 
@@ -218,7 +223,7 @@ fn ray_march(ray: Ray, max_dist: f32, ignore_index: i32, nearest_emission: ptr<f
     for (var i = 0; i < 300; i++) {
         let p = ray.origin + ray.direction * dist;
         let hit = scene_sdf(p);
-        if hit.distance < march_accuracy && hit.index != ignore_index {
+        if hit.distance < march_accuracy {
             result.valid = 1.0;
             result.distance = dist;
             result.index = hit.index;

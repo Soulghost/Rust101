@@ -3,7 +3,7 @@ use std::{rc::Rc, time::Instant};
 use material::PBRMaterial;
 use math::Vector3f;
 use pipeline::State;
-use sdf::{primitive::Sphere, Scene};
+use sdf::{primitive::Sphere, DirectionalLight, Scene};
 use winit::{
     dpi::PhysicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -73,7 +73,17 @@ pub async fn run() {
                 }
                 prev_time = now_time;
 
-                let scene = Scene::new(0, 0, 0.0, 0, Vector3f::zero());
+                let scene = Scene::new(
+                    0,
+                    0,
+                    0.0,
+                    0,
+                    Vector3f::new(0.235294, 0.67451, 0.843137),
+                    DirectionalLight {
+                        direction: Vector3f::new(0.32, -0.77, 0.56),
+                        color: Vector3f::new(1.0, 1.0, 1.0) * 5.0,
+                    },
+                );
                 let purper_material = Rc::new(PBRMaterial::new(
                     Vector3f::new(235.0 / 255.0, 81.0 / 255.0, 1.0),
                     Vector3f::scalar(3.0),

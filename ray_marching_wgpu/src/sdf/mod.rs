@@ -9,6 +9,7 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::mem::transmute;
 use std::rc::Rc;
 
 pub mod ext;
@@ -173,6 +174,11 @@ impl<'a> Default for HitResult<'a> {
     }
 }
 
+pub struct DirectionalLight {
+    pub direction: Vector3f,
+    pub color: Vector3f,
+}
+
 pub struct Scene<'a> {
     pub nodes: FrozenVec<Box<ShapeOp<'a>>>,
     pub root_nodes: FrozenVec<&'a ShapeOp<'a>>,
@@ -182,6 +188,7 @@ pub struct Scene<'a> {
     pub height: u32,
     pub fov: f64,
     pub sample_per_pixel: u32,
+    pub main_light: DirectionalLight,
 
     // material
     material2index: RefCell<HashMap<u64, i32>>,
@@ -195,6 +202,7 @@ impl<'a> Scene<'a> {
         fov: f64,
         sample_per_pixel: u32,
         background_color: Vector3f,
+        main_light: DirectionalLight,
     ) -> Scene<'a> {
         Scene {
             nodes: FrozenVec::new(),
@@ -207,6 +215,7 @@ impl<'a> Scene<'a> {
             height,
             fov,
             sample_per_pixel,
+            main_light,
         }
     }
 
@@ -276,6 +285,24 @@ impl<'a> Scene<'a> {
 
     pub fn get_scene_bytes(&'a self) -> Box<[u8]> {
         let mut buffer: Vec<u8> = Vec::new();
+        unsafe {
+            let pad4: [u8; 4] = [0; 4];
+
+            // background color
+            let background_color_bytes: [u8; 12] = transmute(self.background_color.to32());
+            buffer.extend_from_slice(&background_color_bytes);
+            buffer.extend_from_slice(&pad4);
+
+            // main light
+            let light_dir: [u8; 12] = transmute(self.main_light.direction.to32());
+            let light_color: [u8; 12] = transmute(self.main_light.color.to32());
+            buffer.extend_from_slice(&light_dir);
+            buffer.extend_from_slice(&pad4);
+            buffer.extend_from_slice(&light_color);
+            buffer.extend_from_slice(&pad4);
+        }
+
+        // add root indices
         let sentinel: i32 = -1;
         let sentinel_bytes = sentinel.to_le_bytes();
         if !self.root_nodes.is_empty() {
@@ -470,7 +497,17 @@ impl<'a> Scene<'a> {
 
 impl<'a> Default for Scene<'a> {
     fn default() -> Self {
-        Scene::new(400, 400, 45.0, 1, Vector3f::zero())
+        Scene::new(
+            400,
+            400,
+            45.0,
+            1,
+            Vector3f::zero(),
+            DirectionalLight {
+                direction: Vector3f::scalar(1.0),
+                color: Vector3f::scalar(1.0),
+            },
+        )
     }
 }
 
