@@ -385,8 +385,7 @@ impl State {
     }
 
     pub fn update<'a>(&mut self, scene: &'a Scene<'a>) {
-        let size = self.window.inner_size();
-        self.camera.screen_size = (size.width as f32, size.height as f32).into();
+        self.camera.screen_size = (scene.width as f32, scene.height as f32).into();
 
         // update camera uniform
         self.camera_controller.update_camera(&mut self.camera);

@@ -1,6 +1,7 @@
 use crate::material::pbr::pbr_lighting;
 use crate::material::PBRMaterial;
 use crate::math::lerp;
+use crate::node::camera::Camera;
 use crate::{domain::Ray, math::Vector3f};
 use cgmath::num_traits::ToPrimitive;
 use core::fmt;
@@ -186,8 +187,7 @@ pub struct Scene<'a> {
     pub background_color: Vector3f,
     pub width: u32,
     pub height: u32,
-    pub fov: f64,
-    pub sample_per_pixel: u32,
+    pub camera: Camera,
     pub main_light: DirectionalLight,
 
     // material
@@ -199,8 +199,7 @@ impl<'a> Scene<'a> {
     pub fn new(
         width: u32,
         height: u32,
-        fov: f64,
-        sample_per_pixel: u32,
+        camera: Camera,
         background_color: Vector3f,
         main_light: DirectionalLight,
     ) -> Scene<'a> {
@@ -213,8 +212,7 @@ impl<'a> Scene<'a> {
             background_color,
             width,
             height,
-            fov,
-            sample_per_pixel,
+            camera,
             main_light,
         }
     }
@@ -500,8 +498,16 @@ impl<'a> Default for Scene<'a> {
         Scene::new(
             400,
             400,
-            45.0,
-            1,
+            Camera {
+                screen_size: (480.0, 320.0).into(),
+                eye: (0.0, 1.0, -6.0).into(),
+                target: (0.0, 0.0, 0.0).into(),
+                up: cgmath::Vector3::unit_y(),
+                aspect: 480.0 / 320.0,
+                fovy: 60.0,
+                znear: 0.1,
+                zfar: 100.0,
+            },
             Vector3f::zero(),
             DirectionalLight {
                 direction: Vector3f::scalar(1.0),

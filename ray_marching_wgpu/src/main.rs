@@ -2,6 +2,7 @@ use std::{rc::Rc, time::Instant};
 
 use material::PBRMaterial;
 use math::Vector3f;
+use node::camera::Camera;
 use pipeline::State;
 use sdf::{primitive::Sphere, DirectionalLight, Scene};
 use winit::{
@@ -15,14 +16,12 @@ use crate::{
     math::lerp,
     sdf::{primitive::Cube, ShapeOp},
 };
-use tween::Tweener;
 
 pub mod domain;
 pub mod material;
 pub mod math;
 pub mod node;
 pub mod pipeline;
-pub mod renderer;
 pub mod sdf;
 
 pub async fn run() {
@@ -30,8 +29,9 @@ pub async fn run() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     window.set_inner_size(PhysicalSize::new(1600, 900));
-    let mut state = State::new(window).await;
+    let win_size = window.inner_size();
 
+    let mut state = State::new(window).await;
     let mut prev_time = Instant::now();
     let mut elpased_time: f32 = 0.0;
     event_loop.run(move |event, _, control_flow| {
@@ -74,10 +74,18 @@ pub async fn run() {
                 prev_time = now_time;
 
                 let scene = Scene::new(
-                    0,
-                    0,
-                    0.0,
-                    0,
+                    win_size.width,
+                    win_size.height,
+                    Camera {
+                        screen_size: (win_size.width as f32, win_size.height as f32).into(),
+                        eye: (0.0, 1.0, -6.0).into(),
+                        target: (0.0, 0.0, 0.0).into(),
+                        up: cgmath::Vector3::unit_y(),
+                        aspect: win_size.width as f32 / win_size.height as f32,
+                        fovy: 60.0,
+                        znear: 0.1,
+                        zfar: 100.0,
+                    },
                     Vector3f::new(0.235294, 0.67451, 0.843137),
                     DirectionalLight {
                         direction: Vector3f::new(0.32, -0.77, 0.56),
@@ -123,14 +131,6 @@ pub async fn run() {
                     Rc::clone(&ground_material),
                 );
 
-                // let emission_cube = scene.add_leaf_node(
-                //     Box::new(Cube {
-                //         center: Vector3f::new(-1.0, 0.0, -0.5),
-                //         // center: Vector3f::new(0.0, 0.0, 0.0),
-                //         most_front_up_right: Vector3f::new(0.25, 0.25, 0.25),
-                //     }),
-                //     Rc::clone(&purper_material),
-                // );
                 let mut prev_op: Option<&'_ ShapeOp<'_>> = None;
                 for i in 0..16 {
                     let fi = i as f64;
