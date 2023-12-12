@@ -107,21 +107,55 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     var source_metallic = 0.0;
     for (var depth = 0; depth < 3; depth++) {
         // ray marching
-        var nearest_hit = Hit();
-        let hit = ray_march(ray, 1e5, &nearest_hit);
-        var emission_halo = vec3<f32>(0.0);
-        let emission_halo_factor = 0.3;
-        if nearest_hit.valid > 0.5 {
-            // handle emission haloc
-            let shape = u_shape.shapes[nearest_hit.index];
-            let nearest_material = u_material.materials[shape.material_index];
-            let a = emission_halo_factor;
-            let b = 0.0;
-            let c = 0.2; // Adjust this for the width of the halo
-            let emission_halo_atten = a * exp(-0.5 * pow((nearest_hit.distance - b) / c, 2.0));
-            emission_halo = nearest_material.emission.rgb * nearest_material.albedo.rgb * emission_halo_atten * color_mask;
+        let hit = ray_march(ray, 1e5);
+
+        // sample emeission halo
+        {
+            let max_dist = 1e5;
+            let march_accuracy = 1e-3;
+            var dist = 0.0;
+            var nearest_hit = Hit();
+            nearest_hit.distance = F32_MAX;
+            for (var i = 0; i < 300; i++) {
+                let p = ray.origin + ray.direction * dist;
+                let hit = scene_sdf(p);
+                if hit.distance < march_accuracy {
+                    break;
+                }
+                
+                dist += hit.distance;
+                let shape = u_shape.shapes[hit.index];
+                let material = u_material.materials[shape.material_index];
+                if hit.distance < nearest_hit.distance && length(material.emission.rgb) > 0.1 {
+                    nearest_hit.distance = hit.distance;
+                    nearest_hit.index = hit.index;
+                }
+                if dist >= max_dist {
+                    break;
+                }
+            }
+
+            var emission_halo = vec3<f32>(0.0);
+            if nearest_hit.distance < F32_MAX {
+                let a = 0.3;
+                let b = 0.0;
+                let c = 0.2; // Adjust this for the width of the halo
+                let shape = u_shape.shapes[nearest_hit.index];
+                let material = u_material.materials[shape.material_index];
+                let emission_halo_atten = a * exp(-0.5 * pow((nearest_hit.distance - b) / c, 2.0));
+                let emission_lighting = material.emission.rgb * material.albedo.rgb;
+                emission_halo += emission_lighting * emission_halo_atten * color_mask;
+            }
             result += emission_halo;
         }
+        // var emission_halo = vec3<f32>(0.0);
+        // 
+        // if nearest_hit.valid > 0.5 {
+        //     // handle emission haloc
+        //     let shape = u_shape.shapes[nearest_hit.index];
+        //     let nearest_material = u_material.materials[shape.material_index];
+     
+        // }
 
         if hit.valid < 0.5 {
             // hit skybox
@@ -143,17 +177,46 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
             source_metallic = material.metallic;
         }
 
+        // directional lighting
         let view = normalize(ray.origin - p);
         let light = -light_dir;
-        var spec_factor = vec3<f32>();
-        let direct_lighting = pbr_lighting(p, material, view, normal, light, light_radiance, &spec_factor);
+        let direct_lighting = pbr_lighting(p, material, view, normal, light, light_radiance);
+        let shadow_atten = calculate_shadow_attenuation(p, normal, light, 16.0);
+        result += direct_lighting * shadow_atten * color_mask;
 
-        // emission
+        // sample all emission lights
+        {
+            var index = u_scene.root_indices[0];
+            var i = 0;
+            let max_dist = 1e3;
+            while index != -1 {
+                let shape = u_shape.shapes[index];
+                var dist = shape_chain_sdf(shape, p);
+                if index != hit.index && dist < max_dist {
+                    let material = u_material.materials[shape.material_index];
+                    let emission_lighting_position = vec3<f32>(shape.data[0], shape.data[1], shape.data[2]);
+                    if length(material.emission.rgb) > 0.1 {
+                        // emission light source
+                        let light = normalize(emission_lighting_position - p);
+                        let emission_lighting = material.emission.rgb * material.albedo.rgb;
+                        let indir_lighting = pbr_lighting(p, material, view, normal, light, emission_lighting);
+                        let indir_atten = min(1.0 / (dist * dist), 1.0);
+                        result += indir_lighting * indir_atten * color_mask;
+                    }
+                }
+                i += 1;
+                index = u_scene.root_indices[i];
+            }
+        }
+
+        // self emission
         let emission = material.emission.rgb * material.albedo.rgb * color_mask;
         result += emission;
 
-        let shadow_atten = calculate_shadow_attenuation(p, normal, light, 16.0);
-        result += direct_lighting * shadow_atten * color_mask;
+        if length(emission.rgb) > 0.5 {
+            // emission object does not have scatter
+            break;
+        }    
 
         // the ground reflects nothing
         let is_ground = material.albedo.x < 0.0;
@@ -208,18 +271,12 @@ fn generate_ray(frag_coords: vec2<f32>) -> Ray {
 }
 
 // Ray Marching
-fn ray_march(ray: Ray, max_dist: f32, nearest_emission: ptr<function, Hit>) -> Hit {
+fn ray_march(ray: Ray, max_dist: f32) -> Hit {
     var result = Hit();
     result.valid = 0.0;
 
     var dist = 0.0;
     let march_accuracy = 1e-3;
-    var min_dist = F32_MAX;
-
-    var nearest_hit = Hit();
-    nearest_hit.valid = 0.0;
-    nearest_hit.distance = F32_MAX;
-
     for (var i = 0; i < 300; i++) {
         let p = ray.origin + ray.direction * dist;
         let hit = scene_sdf(p);
@@ -228,22 +285,11 @@ fn ray_march(ray: Ray, max_dist: f32, nearest_emission: ptr<function, Hit>) -> H
             result.distance = dist;
             result.index = hit.index;
         }
-        if hit.distance < min_dist {
-            let material = u_material.materials[u_shape.shapes[hit.index].material_index];
-            if length(material.emission) > 0.05 {
-                min_dist = hit.distance;
-                nearest_hit.index = hit.index;
-                nearest_hit.distance = hit.distance;
-                nearest_hit.valid = 1.0;
-            }
-        }
         dist += hit.distance;
         if dist >= max_dist {
             break;
         }
     }
-
-    *nearest_emission = nearest_hit;
     return result;
 }
 
@@ -371,7 +417,7 @@ fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
 }
 
 // PBR
-fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: vec3<f32>, light: vec3<f32>, incident_radiance: vec3<f32>, specular_factor: ptr<function, vec3<f32>>) -> vec3<f32> {
+fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: vec3<f32>, light: vec3<f32>, incident_radiance: vec3<f32>) -> vec3<f32> {
     var albedo = material.albedo.xyz;
     if albedo.x < 0.0 {
         // ground material
@@ -382,7 +428,7 @@ fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: ve
             albedo = vec3<f32>(1.0, 1.0, 1.0) * 0.3;
         }
     }
-    let ambient = vec3<f32>(0.03) * albedo * (1.0 - material.ao);
+    let ambient = vec3<f32>(0.00) * albedo * (1.0 - material.ao);
     let f0 = lerp3(vec3<f32>(0.04), albedo, material.metallic);
     let half_vec = normalize((view + light) * 0.5);
     let ndf = normal_distribution_ggx(normal, half_vec, material.roughness);
@@ -394,7 +440,6 @@ fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: ve
     let denominator = 4.0 * max(dot(normal, view), 0.0) * max(dot(normal, light), 0.0) + EPSILON;
     let specular = numerator / denominator;
     let diffuse = albedo * kd / PI;
-    *specular_factor = specular;
     return ambient + (diffuse + specular) * incident_radiance * max(dot(light, normal), 0.0);
 }
 

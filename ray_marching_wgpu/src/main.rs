@@ -99,6 +99,13 @@ pub async fn run() {
                     0.85,
                     0.05,
                 ));
+                let stone_material = Rc::new(PBRMaterial::new(
+                    Vector3f::new(31.0 / 255.0, 0.0 / 255.0, 1.0),
+                    Vector3f::scalar(0.0),
+                    0.0,
+                    0.85,
+                    0.05,
+                ));
                 let metal_material = Rc::new(PBRMaterial::new(
                     Vector3f::new(235.0 / 255.0, 232.0 / 255.0, 1.0),
                     Vector3f::zero(),
