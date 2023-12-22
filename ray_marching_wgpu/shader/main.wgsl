@@ -1,6 +1,7 @@
 const PI: f32 = 3.14159265359;
 const EPSILON: f32 = 1.19209290e-07;
 const F32_MAX: f32 = 3.40282347e+38;
+const MAX_ARRAY_SIZE = 255;
 
 struct Ray {
     origin: vec3<f32>,
@@ -105,7 +106,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     let light_radiance = u_scene.main_light.color.rgb;
     var color_mask = vec3<f32>(1.0);
     var source_metallic = 0.0;
-    for (var depth = 0; depth < 3; depth++) {
+    for (var depth = 0; depth < 2; depth++) {
         // ray marching
         let hit = ray_march(ray, 1e5);
 
@@ -115,6 +116,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
             let march_accuracy = 1e-3;
             var dist = 0.0;
             var nearest_hit = Hit();
+            var sample_point = vec3<f32>();
             nearest_hit.distance = F32_MAX;
             for (var i = 0; i < 300; i++) {
                 let p = ray.origin + ray.direction * dist;
@@ -129,6 +131,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
                 if hit.distance < nearest_hit.distance && length(material.emission.rgb) > 0.1 {
                     nearest_hit.distance = hit.distance;
                     nearest_hit.index = hit.index;
+                    sample_point = p;
                 }
                 if dist >= max_dist {
                     break;
@@ -141,21 +144,13 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
                 let b = 0.0;
                 let c = 0.2; // Adjust this for the width of the halo
                 let shape = u_shape.shapes[nearest_hit.index];
-                let material = u_material.materials[shape.material_index];
+                let material = get_blend_material(shape, sample_point);
                 let emission_halo_atten = a * exp(-0.5 * pow((nearest_hit.distance - b) / c, 2.0));
                 let emission_lighting = material.emission.rgb * material.albedo.rgb;
                 emission_halo += emission_lighting * emission_halo_atten * color_mask;
             }
             result += emission_halo;
         }
-        // var emission_halo = vec3<f32>(0.0);
-        // 
-        // if nearest_hit.valid > 0.5 {
-        //     // handle emission haloc
-        //     let shape = u_shape.shapes[nearest_hit.index];
-        //     let nearest_material = u_material.materials[shape.material_index];
-     
-        // }
 
         if hit.valid < 0.5 {
             // hit skybox
@@ -172,7 +167,8 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         let p = ray.origin + ray.direction * hit.distance;
         let normal = calculate_normal(hit, p);
         let shape = u_shape.shapes[hit.index];
-        let material = u_material.materials[shape.material_index];
+
+        var material = get_blend_material(shape, p);
         if depth == 0 {
             source_metallic = material.metallic;
         }
@@ -214,7 +210,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         result += emission;
 
         if length(emission.rgb) > 0.5 {
-            // emission object does not have scatter
+            // emission object does not have scatters
             break;
         }    
 
@@ -428,7 +424,7 @@ fn pbr_lighting(p: vec3<f32>, material: PBRMaterial, view: vec3<f32>, normal: ve
             albedo = vec3<f32>(1.0, 1.0, 1.0) * 0.3;
         }
     }
-    let ambient = vec3<f32>(0.00) * albedo * (1.0 - material.ao);
+    let ambient = u_scene.background_color.rgb * albedo * (1.0 - material.ao);
     let f0 = lerp3(vec3<f32>(0.04), albedo, material.metallic);
     let half_vec = normalize((view + light) * 0.5);
     let ndf = normal_distribution_ggx(normal, half_vec, material.roughness);
@@ -506,6 +502,57 @@ fn calculate_shadow_attenuation(p: vec3<f32>, normal: vec3<f32>, light: vec3<f32
         }
     }
     return result;
+}
+
+fn get_blend_material(shape: Shape, p: vec3<f32>) -> PBRMaterial {
+    var material = PBRMaterial();
+
+    let max_dist = 1.0;
+    let dist_bias = 1e-3;
+    var weights_total = 0.0;
+    var material_indices = array<i32, MAX_ARRAY_SIZE>();
+    var material_weights = array<f32, MAX_ARRAY_SIZE>();
+    var array_size = 0;
+    var dist = shape_sdf(shape, p);
+    var cur = shape;
+    var next_index = shape.next_index;
+
+    // material 0
+    if dist < max_dist {
+        material_indices[array_size] = cur.material_index;
+        material_weights[array_size] = 1.0 / (dist + dist_bias);
+        weights_total += material_weights[array_size];
+        array_size += 1;
+    }
+    
+    // other materials
+    while next_index != -1 {
+        let next = u_shape.shapes[next_index];
+        dist = shape_sdf(next, p);
+
+        if dist < max_dist {
+            material_indices[array_size] = next.material_index;
+            material_weights[array_size] = 1.0 / (dist + dist_bias);
+            weights_total += material_weights[array_size];
+            array_size += 1;
+        }
+
+        cur = next;
+        next_index = next.next_index;
+    }
+
+    // blend
+    for (var i = 0; i < array_size; i++) {
+        let m = u_material.materials[material_indices[i]];
+        let weight = material_weights[i] / weights_total;
+        material.albedo += m.albedo * weight;
+        material.emission += m.emission * weight;
+        material.metallic += m.metallic * weight;
+        material.roughness += m.roughness * weight;
+        material.ao += m.ao * weight;
+    }
+    
+    return material;
 }
 
 // HDR

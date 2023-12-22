@@ -4,8 +4,6 @@ use cgmath::num_traits::ToPrimitive;
 
 use crate::math::Vector3f;
 
-pub mod pbr;
-
 pub struct PBRMaterial {
     pub albedo: Vector3f,
     pub emission: Vector3f,
@@ -50,7 +48,6 @@ impl PBRMaterial {
             let roughness_bytes = self.roughness.to_f32().unwrap().to_le_bytes();
             let ao_bytes = self.ao.to_f32().unwrap().to_le_bytes();
 
-            let half_bytes = (0.25 as f32).to_le_bytes();
             bytes[0..12].copy_from_slice(&albedo_bytes);
             bytes[16..28].copy_from_slice(&emission_bytes);
             // bytes[28..32].copy_from_slice(&half_bytes);

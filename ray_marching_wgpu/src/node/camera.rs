@@ -1,8 +1,7 @@
-use cgmath::InnerSpace;
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 use crate::domain::Ray;
-use crate::math::{ext, Vector3f};
+use crate::math::Vector3f;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -12,6 +11,7 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     0.0, 0.0, 0.0, 1.0,
 );
 
+#[derive(Clone, Copy)]
 pub struct Camera {
     pub screen_size: cgmath::Point2<f32>,
     pub eye: cgmath::Point3<f32>,
@@ -24,7 +24,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+    fn _build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let view = cgmath::Matrix4::look_at_lh(self.eye, self.target, self.up);
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
         let flip_z = cgmath::Matrix4::from_nonuniform_scale(1.0, 1.0, -1.0);

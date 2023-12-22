@@ -1,11 +1,8 @@
 use std::iter;
 use wgpu::{util::DeviceExt, InstanceFlags};
-use winit::{event::WindowEvent, window::Window};
+use winit::window::Window;
 
-use crate::{
-    node::camera::{Camera, CameraController, CameraUniform},
-    sdf::Scene,
-};
+use crate::{node::camera::CameraUniform, sdf::Scene};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -77,8 +74,6 @@ pub struct State {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub num_indices: u32,
-    pub camera: Camera,
-    pub camera_controller: CameraController,
     pub camera_uniform: CameraUniform,
     pub camera_buffer: wgpu::Buffer,
     pub camera_bind_group: wgpu::BindGroup,
@@ -150,23 +145,7 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let size = window.inner_size();
-        let camera = Camera {
-            screen_size: (size.width as f32, size.height as f32).into(),
-            eye: (0.0, 1.0, -6.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
-            aspect: config.width as f32 / config.height as f32,
-            fovy: 60.0,
-            znear: 0.1,
-            zfar: 100.0,
-        };
-        println!("the window size is {:?}", size);
-        let camera_controller = CameraController::new(0.2);
-
-        let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update(&camera);
-
+        let camera_uniform = CameraUniform::new();
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
             contents: bytemuck::cast_slice(&[camera_uniform]),
@@ -352,8 +331,6 @@ impl State {
             vertex_buffer,
             index_buffer,
             num_indices,
-            camera,
-            camera_controller,
             camera_buffer,
             camera_bind_group,
             camera_uniform,
@@ -375,21 +352,12 @@ impl State {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
-
-            self.camera.aspect = self.config.width as f32 / self.config.height as f32;
         }
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_events(event)
-    }
-
     pub fn update<'a>(&mut self, scene: &'a Scene<'a>) {
-        self.camera.screen_size = (scene.width as f32, scene.height as f32).into();
-
         // update camera uniform
-        self.camera_controller.update_camera(&mut self.camera);
-        self.camera_uniform.update(&self.camera);
+        self.camera_uniform.update(&scene.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
