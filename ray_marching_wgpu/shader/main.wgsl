@@ -189,7 +189,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
                 let shape = u_shape.shapes[index];
                 var dist = shape_chain_sdf(shape, p);
                 if index != hit.index && dist < max_dist {
-                    let material = u_material.materials[shape.material_index];
+                    let material = get_blend_material(shape, p);
                     let emission_lighting_position = vec3<f32>(shape.data[0], shape.data[1], shape.data[2]);
                     if length(material.emission.rgb) > 0.1 {
                         // emission light source

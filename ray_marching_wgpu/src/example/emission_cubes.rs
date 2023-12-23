@@ -93,7 +93,7 @@ impl EmissionCubeApp {
                         Vector3f::new(0.235294, 0.67451, 0.843137) * 0.02,
                         DirectionalLight {
                             direction: Vector3f::new(0.32, -0.77, 0.56),
-                            color: Vector3f::new(1.0, 1.0, 1.0) * 0.5,
+                            color: Vector3f::new(1.0, 1.0, 1.0) * 1.0,
                         },
                     );
                     let metal_material = Rc::new(PBRMaterial::new(
@@ -103,6 +103,13 @@ impl EmissionCubeApp {
                         0.30,
                         0.025,
                     ));
+                    let rough_material = Rc::new(PBRMaterial::new(
+                        Vector3f::new(246.0 / 255.0, 247.0 / 255.0, 102.0 / 255.0),
+                        Vector3f::zero(),
+                        0.0,
+                        0.95,
+                        0.025,
+                    ));
                     let ground_material = Rc::new(PBRMaterial::new(
                         Vector3f::new(-1.0, -1.0, -1.0),
                         Vector3f::zero(),
@@ -110,12 +117,21 @@ impl EmissionCubeApp {
                         1.0,
                         0.0,
                     ));
-                    let root_sphere = scene.add_node(
+                    let root_sphere_left = scene.add_node(
                         Box::new(Sphere {
                             center: Vector3f::new(-3.5, 0.0, -1.2),
                             radius: 0.8,
                         }),
                         Rc::clone(&metal_material),
+                        sdf::ShapeOpType::SmoothUnion,
+                        None,
+                    );
+                    let root_sphere_right = scene.add_node(
+                        Box::new(Sphere {
+                            center: Vector3f::new(3.5, 0.0, -1.2),
+                            radius: 0.8,
+                        }),
+                        Rc::clone(&rough_material),
                         sdf::ShapeOpType::SmoothUnion,
                         None,
                     );
@@ -158,7 +174,8 @@ impl EmissionCubeApp {
                     }
                     scene.add_root_node(ground_node);
                     scene.add_root_node(prev_op.unwrap());
-                    scene.add_root_node(root_sphere);
+                    scene.add_root_node(root_sphere_left);
+                    scene.add_root_node(root_sphere_right);
                     state.update(&scene);
 
                     match state.render() {
