@@ -106,6 +106,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     let light_radiance = u_scene.main_light.color.rgb;
     var color_mask = vec3<f32>(1.0);
     var source_metallic = 0.0;
+    var hit_dist = 100.0;
     for (var depth = 0; depth < 2; depth++) {
         // ray marching
         let hit = ray_march(ray, 1e5);
@@ -171,6 +172,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         var material = get_blend_material(shape, p);
         if depth == 0 {
             source_metallic = material.metallic;
+            hit_dist = hit.distance;
         }
 
         // directional lighting
@@ -233,7 +235,33 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         ray.direction = reflection_dir;
         color_mask *= 0.75 * source_metallic;
     }
-    return vec4(tone_mapping(result), 1.0);
+
+    // depth debug
+    // {
+    //     let depth = hit_dist;
+    //     return vec4(vec3(hit_dist / 100.0), 1.0);
+    // }
+
+    return vec4(post_processing(_ray, hit_dist, result), 1.0);
+}
+
+fn post_processing(ray: Ray, dist: f32, input: vec3<f32>) -> vec3<f32> {
+    var result = input;
+
+    // global fog (depth)
+    // {
+    //     let hit_position = ray.origin + ray.direction * dist;
+    //     let fog_start = 0.0;
+    //     let fog_end = 80.0;
+    //     let fog_density = 0.5;
+    //     let fog_color = vec3<f32>(1.0);
+    //     var fog_factor = (dist - fog_start) / (fog_end - fog_start);
+    //     fog_factor = 1.0 + pow(fog_factor - 1.0, 3.0);
+    //     fog_factor = saturate(fog_factor * fog_density);
+    //     result = lerp3(result, fog_color, fog_factor);
+    // }
+
+    return tone_mapping(result);
 }
 
 fn generate_ray(frag_coords: vec2<f32>) -> Ray {
