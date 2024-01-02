@@ -72,6 +72,12 @@ var<storage, read> u_shape: ShapeUniform;
 @group(1) @binding(2)
 var<storage, read> u_material: PBRMaterialUniform;
 
+@group(2) @binding(0)
+var t_cloud: texture_3d<f32>;
+
+@group(2) @binding(1)
+var s_cloud: sampler; 
+
 @vertex
 fn vs_main(
     model: VertexInput,
@@ -84,8 +90,13 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var ray = generate_ray(in.tex_coords);
-    return cast_ray(ray);
+    // test 3d texture
+    let d = textureSample(t_cloud, s_cloud, vec3(in.tex_coords.xy, 0.5), vec3(0)).r;
+    return vec4(vec3(d), 1.0);
+    // return vec4(in.tex_coords.xy, 0.0, 1.0);
+
+    // var ray = generate_ray(in.tex_coords);
+    // return cast_ray(ray);
 }
 
 struct Hit {

@@ -18,3 +18,8 @@ pollster = "0.3"
 wgpu = "0.18"
 winit = "0.28"
 tween = "2.0.1"
+
+[dependencies.image]
+version = "0.24"
+default-features = false
+features = ["png", "jpeg", "exr"]
