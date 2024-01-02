@@ -73,7 +73,7 @@ var<storage, read> u_shape: ShapeUniform;
 var<storage, read> u_material: PBRMaterialUniform;
 
 @group(2) @binding(0)
-var t_cloud: texture_3d<f32>;
+var t_cloud: texture_2d<f32>;
 
 @group(2) @binding(1)
 var s_cloud: sampler; 
@@ -91,9 +91,24 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // test 3d texture
-    let d = textureSample(t_cloud, s_cloud, vec3(in.tex_coords.xy, 0.5), vec3(0)).r;
-    return vec4(vec3(d), 1.0);
-    // return vec4(in.tex_coords.xy, 0.0, 1.0);
+    // Calculate the slice index from the z-coordinate.
+    let slice_index = i32(0.2 * 64.0); // Assuming z is already in [0,1]
+
+    // Calculate the row and column of the slice in the texture atlas.
+    let row = slice_index / 8; // 8 slices per row
+    let col = slice_index % 8; // 8 slices per column
+
+    // Calculate the size of each slice in texture coordinates.
+    let slice_size = 1.0 / 8.0; // 8 slices per row and column
+
+    // Calculate the offset within the texture atlas.
+    let slice_offset = vec2(f32(col), f32(row)) * slice_size;
+
+    // Calculate the final texture coordinates.
+    let atals_coords = slice_offset + in.tex_coords.xy * slice_size;
+    let d = textureSample(t_cloud, s_cloud, atals_coords).rgb;
+    // return vec4(vec3(d), 1.0);
+    return vec4(d, 1.0);
 
     // var ray = generate_ray(in.tex_coords);
     // return cast_ray(ray);

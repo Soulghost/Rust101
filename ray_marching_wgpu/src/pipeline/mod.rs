@@ -266,9 +266,9 @@ impl State {
                 .unwrap();
         let cloud_texture_rgba = cloud_texture_image.to_rgba8();
         let cloud_texture_size = wgpu::Extent3d {
-            width: 64,
-            height: 64,
-            depth_or_array_layers: 64,
+            width: 512,
+            height: 512,
+            depth_or_array_layers: 1,
         };
         let cloud_texture = device.create_texture(&wgpu::TextureDescriptor {
             // All textures are stored as 3D, we represent our 2D texture
@@ -276,7 +276,7 @@ impl State {
             size: cloud_texture_size,
             mip_level_count: 1, // We'll talk about this a little later
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D3,
+            dimension: wgpu::TextureDimension::D2,
             // Most images are stored using sRGB, so we need to reflect that here.
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             // TEXTURE_BINDING tells wgpu that we want to use this texture in shaders
@@ -305,15 +305,14 @@ impl State {
             // The layout of the texture
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * 64),
-                rows_per_image: Some(64),
+                bytes_per_row: Some(4 * 512),
+                rows_per_image: Some(512),
             },
             cloud_texture_size,
         );
 
         let cloud_texture_view = cloud_texture.create_view(&wgpu::TextureViewDescriptor {
             label: Some("cloud_texture_view"),
-            dimension: Some(wgpu::TextureViewDimension::D3),
             ..Default::default()
         });
         let cloud_texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -324,11 +323,7 @@ impl State {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: std::f32::MAX,
-            compare: None,
-            anisotropy_clamp: 1,
-            border_color: None,
+            ..Default::default()
         });
 
         let cloud_texture_bind_group_layout =
@@ -339,7 +334,7 @@ impl State {
                         visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Texture {
                             multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D3,
+                            view_dimension: wgpu::TextureViewDimension::D2,
                             sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         },
                         count: None,
