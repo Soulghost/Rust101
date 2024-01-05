@@ -3,6 +3,10 @@ const EPSILON: f32 = 1.19209290e-07;
 const F32_MAX: f32 = 3.40282347e+38;
 const MAX_ARRAY_SIZE = 255;
 
+// types
+const INVALID_TYPE: i32 = -1;
+const CLOUD_TYPE: i32 = 6;
+
 struct Ray {
     origin: vec3<f32>,
     direction: vec3<f32>,
@@ -78,6 +82,19 @@ var t_cloud: texture_2d<f32>;
 @group(2) @binding(1)
 var s_cloud: sampler; 
 
+// types
+struct Hit {
+    valid: f32,
+    distance: f32,
+    index: i32,
+    material_index: i32
+}
+
+struct CloudHit {
+    transmission: f32,
+    result: vec3<f32>
+}
+
 @vertex
 fn vs_main(
     model: VertexInput,
@@ -97,13 +114,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return cast_ray(ray);
 }
 
-struct Hit {
-    valid: f32,
-    distance: f32,
-    index: i32,
-    material_index: i32
-}
-
 // Shading
 fn cast_ray(_ray: Ray) -> vec4<f32> {
     var ray = _ray;
@@ -118,7 +128,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     var hit_dist = 100.0;
     for (var depth = 0; depth < 2; depth++) {
         // ray marching
-        let hit = ray_march(ray, 1e5);
+        var hit = ray_march(ray, 1e5, INVALID_TYPE);
 
         // sample emeission halo
         {
@@ -130,7 +140,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
             nearest_hit.distance = F32_MAX;
             for (var i = 0; i < 300; i++) {
                 let p = ray.origin + ray.direction * dist;
-                let hit = scene_sdf(p);
+                let hit = scene_sdf(p, CLOUD_TYPE);
                 if hit.distance < march_accuracy {
                     break;
                 }
@@ -173,13 +183,29 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
             break;
         } 
 
-        let shape = u_shape.shapes[hit.index];
-        let p = ray.origin + ray.direction * hit.distance;
+        var shape = u_shape.shapes[hit.index];
+        var p = ray.origin + ray.direction * hit.distance;
+        var cloud_hit = CloudHit();
+        cloud_hit.transmission = 1.0;
         if shape.type_index == 6 {
             // cloud
             // Volumetric Cloud
-            result += shading_volumetric_cloud(p, ray.direction, shape, t_cloud, light_dir);
-            break;
+            cloud_hit = shading_volumetric_cloud(p, ray.direction, shape, t_cloud, light_dir);
+            
+            // restart an raymarching without cloud
+            hit = ray_march(ray, 1e5, CLOUD_TYPE);
+            if hit.valid < 0.5 {
+                // hit skybox
+                if depth == 0 {
+                    // return the skybox color
+                    result += lerp3(cloud_hit.result, background_color, cloud_hit.transmission);
+                } else {
+                    result += lerp3(cloud_hit.result, background_color, cloud_hit.transmission) * color_mask;
+                }
+                break;
+            } 
+            shape = u_shape.shapes[hit.index];
+            p = ray.origin + ray.direction * hit.distance;
         }
 
         // normal shading
@@ -226,6 +252,9 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         let emission = material.emission.rgb * material.albedo.rgb * color_mask;
         result += emission;
 
+        // handle cloud transmission
+        result = lerp3(cloud_hit.result, result, cloud_hit.transmission);
+
         if length(emission.rgb) > 0.5 {
             // emission object does not have scatters
             break;
@@ -248,7 +277,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
         }
         ray.origin = reflection_orig;
         ray.direction = reflection_dir;
-        color_mask *= 0.75 * source_metallic;
+        color_mask *= 0.75 * source_metallic * cloud_hit.transmission;
     }
 
     // depth debug
@@ -256,7 +285,7 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
     //     let depth = hit_dist;
     //     return vec4(vec3(hit_dist / 100.0), 1.0);
     // }
-
+    
     return vec4(post_processing(_ray, hit_dist, result), 1.0);
 }
 
@@ -314,7 +343,7 @@ fn shading_volumetric_cloud(origin: vec3<f32>,
                             direction: vec3<f32>, 
                             cloud_cube: Shape,
                             cloud_texture: texture_2d<f32>,
-                            light_dir: vec3<f32>) -> vec3<f32> {
+                            light_dir: vec3<f32>) -> CloudHit {
     let n_steps = 64;
     let step_size = 0.02;
     let density_scale = 0.1;
@@ -364,7 +393,10 @@ fn shading_volumetric_cloud(origin: vec3<f32>,
     let cloud_light_color = vec3<f32>(1.0);
     let cloud_shadow_color = vec3<f32>(0.52, 0.61, 0.68) * 0.6;
     let cloud_color = lerp3(cloud_shadow_color, cloud_light_color, final_light);
-    return lerp3(cloud_color, u_scene.background_color.rgb, transmission);
+    var cloud_hit = CloudHit();
+    cloud_hit.transmission = transmission;
+    cloud_hit.result = cloud_color;
+    return cloud_hit;
 }
 
 fn sample_texture_2d_as_3d(t: texture_2d<f32>, s: sampler, n_rows: i32, n_cols: i32, size: vec3<f32>, uv: vec3<f32>) -> vec4<f32> {
@@ -388,7 +420,7 @@ fn sample_texture_2d_as_3d(t: texture_2d<f32>, s: sampler, n_rows: i32, n_cols: 
 }
 
 // Ray Marching
-fn ray_march(ray: Ray, max_dist: f32) -> Hit {
+fn ray_march(ray: Ray, max_dist: f32, ignore_type: i32) -> Hit {
     var result = Hit();
     result.valid = 0.0;
 
@@ -396,7 +428,7 @@ fn ray_march(ray: Ray, max_dist: f32) -> Hit {
     let march_accuracy = 1e-3;
     for (var i = 0; i < 300; i++) {
         let p = ray.origin + ray.direction * dist;
-        let hit = scene_sdf(p);
+        let hit = scene_sdf(p, ignore_type);
         if hit.distance < march_accuracy {
             result.valid = 1.0;
             result.distance = dist;
@@ -410,13 +442,18 @@ fn ray_march(ray: Ray, max_dist: f32) -> Hit {
     return result;
 }
 
-fn scene_sdf(p: vec3<f32>) -> Hit {
+fn scene_sdf(p: vec3<f32>, ignore_type: i32) -> Hit {
     var index = u_scene.root_indices[0];
     var hit = Hit();
     hit.distance = F32_MAX;
     var i = 0;
     while index != -1 {
         let shape = u_shape.shapes[index];
+        if shape.type_index == ignore_type {
+            i += 1;
+            index = u_scene.root_indices[i];
+            continue;
+        }
         var dist = shape_chain_sdf(shape, p);
         if dist < hit.distance {
             hit.distance = dist;
@@ -530,10 +567,10 @@ fn op_sdf(sdf_a: f32, op: i32, sdf_b: f32) -> f32 {
 fn calculate_normal(hit: Hit, p: vec3<f32>) -> vec3<f32> {
     let shape = u_shape.shapes[hit.index];
     var e = vec2(1.0,-1.0)*0.5773*0.0005;
-    return normalize( e.xyy*scene_sdf(p + e.xyy ).distance + 
-					  e.yyx*scene_sdf(p + e.yyx ).distance + 
-					  e.yxy*scene_sdf(p + e.yxy ).distance + 
-					  e.xxx*scene_sdf(p + e.xxx ).distance );
+    return normalize( e.xyy*scene_sdf(p + e.xyy, INVALID_TYPE).distance + 
+					  e.yyx*scene_sdf(p + e.yyx, INVALID_TYPE).distance + 
+					  e.yxy*scene_sdf(p + e.yxy, INVALID_TYPE).distance + 
+					  e.xxx*scene_sdf(p + e.xxx, INVALID_TYPE).distance );
 }
 
 // PBR
@@ -615,7 +652,7 @@ fn calculate_shadow_attenuation(p: vec3<f32>, normal: vec3<f32>, light: vec3<f32
 
     for (var i = 0; i < 256; i++) {
         let p = ray.origin + ray.direction * dist;
-        let hit = scene_sdf(p);
+        let hit = scene_sdf(p, CLOUD_TYPE);
         if hit.distance < march_accuracy {
             return 0.0;
         }

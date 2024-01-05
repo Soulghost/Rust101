@@ -181,8 +181,8 @@ impl EmissionCubeApp {
                         // Volumetric Cloud
                         let cloud_cube_node = scene.add_leaf_node(
                             Box::new(VolumetricCloud {
-                                center: Vector3f::new(0.0, 0.5, -0.5),
-                                most_front_up_right: Vector3f::new(1.5, 1.5, 1.5),
+                                center: Vector3f::new(-1.0, 1.0, -2.0),
+                                most_front_up_right: Vector3f::scalar(1.0),
                             }),
                             Rc::clone(&rough_material),
                         );
