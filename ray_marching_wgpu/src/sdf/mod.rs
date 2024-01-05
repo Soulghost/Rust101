@@ -19,6 +19,7 @@ pub enum ShapeType {
     Torus,
     DeathStar,
     Helix,
+    VolumetricCloud,
 }
 
 impl ShapeType {
@@ -30,6 +31,7 @@ impl ShapeType {
             ShapeType::Torus => 3,
             ShapeType::DeathStar => 4,
             ShapeType::Helix => 5,
+            ShapeType::VolumetricCloud => 6,
         }
     }
 }
@@ -43,6 +45,7 @@ impl Display for ShapeType {
             ShapeType::Torus => write!(f, "Torus"),
             ShapeType::DeathStar => write!(f, "DeathStar"),
             ShapeType::Helix => write!(f, "Helix"),
+            ShapeType::VolumetricCloud => write!(f, "VolumetricCloud"),
         }
     }
 }

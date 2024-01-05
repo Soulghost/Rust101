@@ -14,7 +14,7 @@ use crate::{
     pipeline::State,
     sdf::{
         self,
-        primitive::{Cube, Sphere},
+        primitive::{Cube, Sphere, VolumetricCloud},
         DirectionalLight, Scene, ShapeOp,
     },
 };
@@ -173,9 +173,22 @@ impl EmissionCubeApp {
                         prev_op = Some(current_op);
                     }
                     scene.add_root_node(ground_node);
-                    scene.add_root_node(prev_op.unwrap());
+                    // scene.add_root_node(prev_op.unwrap());
                     scene.add_root_node(root_sphere_left);
                     scene.add_root_node(root_sphere_right);
+
+                    {
+                        // Volumetric Cloud
+                        let cloud_cube_node = scene.add_leaf_node(
+                            Box::new(VolumetricCloud {
+                                center: Vector3f::new(0.0, 0.5, -0.5),
+                                most_front_up_right: Vector3f::new(1.5, 1.5, 1.5),
+                            }),
+                            Rc::clone(&rough_material),
+                        );
+                        scene.add_root_node(cloud_cube_node);
+                    }
+
                     state.update(&scene);
 
                     match state.render() {

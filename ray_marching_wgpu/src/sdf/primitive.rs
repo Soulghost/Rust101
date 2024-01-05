@@ -156,3 +156,36 @@ impl Display for Helix {
         )
     }
 }
+
+pub struct VolumetricCloud {
+    pub most_front_up_right: Vector3f,
+    pub center: Vector3f,
+    // FIXME: texture
+}
+
+impl Shape for VolumetricCloud {
+    fn shape_type(&self) -> ShapeType {
+        ShapeType::VolumetricCloud
+    }
+
+    fn to_bytes(&self) -> [u8; 32] {
+        let mut bytes = [0u8; 32];
+        unsafe {
+            let center_bytes: [u8; 12] = transmute(self.center.to32());
+            let most_front_up_right_bytes: [u8; 12] = transmute(self.most_front_up_right.to32());
+            bytes[0..12].copy_from_slice(&center_bytes);
+            bytes[12..24].copy_from_slice(&most_front_up_right_bytes);
+        }
+        bytes
+    }
+}
+
+impl Display for VolumetricCloud {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "VolumetricCloud(c={}, mfur={})",
+            self.center, self.most_front_up_right
+        )
+    }
+}

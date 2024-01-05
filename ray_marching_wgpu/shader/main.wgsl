@@ -90,28 +90,11 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // test 3d texture
-    // Calculate the slice index from the z-coordinate.
-    let slice_index = i32(0.2 * 64.0); // Assuming z is already in [0,1]
+    // let d = sample_texture_2d_as_3d(t_cloud, s_cloud, 8, 8, vec3<f32>(64.0), vec3<f32>(in.tex_coords.xy, 0.5)).rgb;
+    // return vec4(d, 1.0);
 
-    // Calculate the row and column of the slice in the texture atlas.
-    let row = slice_index / 8; // 8 slices per row
-    let col = slice_index % 8; // 8 slices per column
-
-    // Calculate the size of each slice in texture coordinates.
-    let slice_size = 1.0 / 8.0; // 8 slices per row and column
-
-    // Calculate the offset within the texture atlas.
-    let slice_offset = vec2(f32(col), f32(row)) * slice_size;
-
-    // Calculate the final texture coordinates.
-    let atals_coords = slice_offset + in.tex_coords.xy * slice_size;
-    let d = textureSample(t_cloud, s_cloud, atals_coords).rgb;
-    // return vec4(vec3(d), 1.0);
-    return vec4(d, 1.0);
-
-    // var ray = generate_ray(in.tex_coords);
-    // return cast_ray(ray);
+    var ray = generate_ray(in.tex_coords);
+    return cast_ray(ray);
 }
 
 struct Hit {
@@ -188,13 +171,19 @@ fn cast_ray(_ray: Ray) -> vec4<f32> {
                 result += background_color * color_mask;
             }
             break;
+        } 
+
+        let shape = u_shape.shapes[hit.index];
+        let p = ray.origin + ray.direction * hit.distance;
+        if shape.type_index == 6 {
+            // cloud
+            // Volumetric Cloud
+            result += shading_volumetric_cloud(p, ray.direction, shape, t_cloud, light_dir);
+            break;
         }
 
-        // shading
-        let p = ray.origin + ray.direction * hit.distance;
+        // normal shading
         let normal = calculate_normal(hit, p);
-        let shape = u_shape.shapes[hit.index];
-
         var material = get_blend_material(shape, p);
         if depth == 0 {
             source_metallic = material.metallic;
@@ -320,6 +309,84 @@ fn generate_ray(frag_coords: vec2<f32>) -> Ray {
     return ray;
 }
 
+// Volumetric Cloud
+fn shading_volumetric_cloud(origin: vec3<f32>, 
+                            direction: vec3<f32>, 
+                            cloud_cube: Shape,
+                            cloud_texture: texture_2d<f32>,
+                            light_dir: vec3<f32>) -> vec3<f32> {
+    let n_steps = 64;
+    let step_size = 0.02;
+    let density_scale = 0.1;
+    // let offset = vec3<f32>(0.52, 0.5, 0.5);
+    let offset = vec3<f32>(0.0);
+    let n_light_steps = 16;
+    let light_step_size = 0.06;
+    let light_absorb = 2.02;
+    let darkness_threshold = 0.15;
+    
+    let cube_origin = vec3<f32>(cloud_cube.data[0], cloud_cube.data[1], cloud_cube.data[2]);
+    let cube_extent = vec3<f32>(cloud_cube.data[3], cloud_cube.data[4], cloud_cube.data[5]);
+    var ray_origin = (origin - cube_origin) / cube_extent;
+    // if n_light_steps > 0 {
+    //     return ray_origin;
+    // }
+
+    var density = 0.0;
+    var light_density = 0.0;
+    var final_light = 0.0;
+    var transmittance = 0.97;
+    var light_step_dir = -light_dir;
+    
+    for (var i = 0; i < n_steps; i++) {
+        ray_origin += direction * step_size;
+        let sample_pos = ray_origin + offset;
+        let sample_uv = saturate((sample_pos + 1.0) / 2.0);
+        let d = sample_texture_2d_as_3d(t_cloud, s_cloud, 8, 8, vec3<f32>(64.0), sample_uv).r; 
+        density += d * density_scale;
+
+        // light
+        var light_origin = sample_pos;
+        for (var j = 0; j < n_light_steps; j++) {
+            light_origin += light_step_dir * light_step_size;
+            let sample_uv = saturate((light_origin + 1.0) / 2.0);
+            let d = sample_texture_2d_as_3d(t_cloud, s_cloud, 8, 8, vec3<f32>(64.0), sample_uv).r; 
+            light_density += d;
+        }
+
+        let light_transmission = exp(-light_density);
+        let shadow = darkness_threshold + light_transmission * (1.0 - darkness_threshold);
+        final_light += density * transmittance * shadow;
+        transmittance *= exp(-density * light_absorb);
+    }
+
+    let transmission = exp(-density);
+    let cloud_light_color = vec3<f32>(1.0);
+    let cloud_shadow_color = vec3<f32>(0.52, 0.61, 0.68) * 0.6;
+    let cloud_color = lerp3(cloud_shadow_color, cloud_light_color, final_light);
+    return lerp3(cloud_color, u_scene.background_color.rgb, transmission);
+}
+
+fn sample_texture_2d_as_3d(t: texture_2d<f32>, s: sampler, n_rows: i32, n_cols: i32, size: vec3<f32>, uv: vec3<f32>) -> vec4<f32> {
+    // test 3d texture
+    // Calculate the slice index from the z-coordinate.
+    let slice_index = i32(uv.z * size.z); // Assuming z is already in [0,1]
+
+    // Calculate the row and column of the slice in the texture atlas.
+    let row = slice_index / n_rows; // 8 slices per row
+    let col = slice_index % n_cols; // 8 slices per column
+
+    // Calculate the size of each slice in texture coordinates.
+    let slice_size = vec2<f32>(1.0 / (size.x / f32(n_rows)), 1.0 / (size.y / f32(n_cols))); // 8 slices per row and column
+
+    // Calculate the offset within the texture atlas.
+    let slice_offset = vec2(f32(col) * slice_size.x, f32(row) * slice_size.y);
+
+    // Calculate the final texture coordinates.
+    let atals_coords = slice_offset + vec2<f32>(uv.x * slice_size.x, uv.y * slice_size.y);
+    return textureSample(t_cloud, s, atals_coords);
+}
+
 // Ray Marching
 fn ray_march(ray: Ray, max_dist: f32) -> Hit {
     var result = Hit();
@@ -394,6 +461,9 @@ fn shape_sdf(shape: Shape, p: vec3<f32>) -> f32 {
             return sphere_sdf(shape, p);
         }
         case 1: {
+            return cube_sdf(shape, p);
+        }
+        case 6: {
             return cube_sdf(shape, p);
         }
         default: {
